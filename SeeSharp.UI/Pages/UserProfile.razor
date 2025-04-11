@@ -1,0 +1,260 @@
+@page "/userprofile"
+@using SeeSharp.UI.Models
+@inject HttpClient Http
+
+<PageTitle>User Profile</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Left Sidebar Menu -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <img src="@userProfile.ProfilePictureUrl" 
+                             alt="Profile Picture" 
+                             class="rounded-circle"
+                             style="width: 100px; height: 100px; object-fit: cover;"/>
+                        <h5 class="mt-2">@userProfile.FullName</h5>
+                    </div>
+                    <div class="list-group">
+                        <button class="list-group-item list-group-item-action @(activeSection == "profile")"
+                                @onclick="() => SetActiveSection(ProfileSection)">
+                            <i class="bi bi-person me-2"></i>Profile Information
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeSection == "password")"
+                                @onclick="() => SetActiveSection(PasswordSection)">
+                            <i class="bi bi-key me-2"></i>Change Password
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeSection == "orders")"
+                                @onclick="() => SetActiveSection(OrdersSection)">
+                            <i class="bi bi-bag me-2"></i>Order History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-md-9">
+            @if (activeSection == "profile")
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Profile Information</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" @bind="userProfile.FullName" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" @bind="userProfile.PhoneNumber" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" @bind="userProfile.Email" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Profile Picture URL</label>
+                            <input type="text" class="form-control" @bind="userProfile.ProfilePictureUrl" />
+                        </div>
+
+                        <div class="text-center">
+                            <button class="btn btn-primary" @onclick="SaveProfile">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activeSection == "password")
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Change Password</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" class="form-control" @bind="passwordChange.CurrentPassword" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Password</label>
+                            <input type="password" class="form-control" @bind="passwordChange.NewPassword" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" @bind="passwordChange.ConfirmPassword" />
+                        </div>
+                        <div class="text-center">
+                            <button class="btn btn-warning" @onclick="ChangePassword">Change Password</button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activeSection == "orders")
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Order History</h4>
+                    </div>
+                    <div class="card-body">
+                        @if (orders == null)
+                        {
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        }
+                        else if (!orders.Any())
+                        {
+                            <p class="text-center">No orders found.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Total</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var order in orders)
+                                        {
+                                            <tr>
+                                                <td>@order.OrderId</td>
+                                                <td>@order.OrderDate.ToShortDateString()</td>
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass(order.Status)">
+                                                        @order.Status
+                                                    </span>
+                                                </td>
+                                                <td>@order.TotalAmount.ToString("C")</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info" @onclick="() => ViewOrderDetails(order.OrderId)">
+                                                        Details
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserProfileResponse userProfile = new();
+    private PasswordChangeModel passwordChange = new();
+    private List<Order> orders = new();
+    private bool isLoading = true;
+    private string activeSection = "profile";
+    private const string ProfileSection = "profile";
+    private const string PasswordSection = "password";
+    private const string OrdersSection = "orders";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Load user profile data from your API or service
+        // For now, we'll use sample data
+        userProfile = new UserProfileResponse();
+        userProfile.FullName = "John Doe";
+        
+        // Load orders
+        await LoadOrders();
+    }
+
+    private void SetActiveSection(string section)
+    {
+        activeSection = section;
+    }
+
+    private async Task LoadOrders()
+    {
+        isLoading = true;
+        try
+        {
+            // TODO: Replace with actual API call
+            orders = new List<Order>
+            {
+                new Order { OrderId = "ORD001", OrderDate = DateTime.Now.AddDays(-5), Status = "Completed", TotalAmount = 150.00m },
+                new Order { OrderId = "ORD002", OrderDate = DateTime.Now.AddDays(-2), Status = "Processing", TotalAmount = 75.50m }
+            };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        // TODO: Implement save functionality to your API or service
+        await Task.CompletedTask;
+    }
+
+    private async Task ChangePassword()
+    {
+        if (passwordChange.NewPassword != passwordChange.ConfirmPassword)
+        {
+            // TODO: Show error message
+            return;
+        }
+
+        // TODO: Implement password change functionality
+        await Task.CompletedTask;
+    }
+
+    private void ViewOrderDetails(string orderId)
+    {
+        // TODO: Navigate to order details page
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "completed" => "bg-success",
+            "processing" => "bg-warning",
+            "cancelled" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private class UserProfileResponse
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string ProfilePictureUrl { get; set; } = string.Empty;
+    }
+
+    private class PasswordChangeModel
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    private class Order
+    {
+        public string OrderId { get; set; } = string.Empty;
+        public DateTime OrderDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+    }
+} 
