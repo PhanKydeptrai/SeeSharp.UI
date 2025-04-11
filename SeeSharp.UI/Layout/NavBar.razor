@@ -1,0 +1,105 @@
+﻿@using Blazored.LocalStorage
+@inject ILocalStorageService localStorage
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="row py-3 align-items-center">
+    <div class="col-md-3">
+        <a class="navbar-brand fs-3 fw-bold text-primary text-decoration-none" href="/">Kính Thời Trang</a>
+    </div>
+    <div class="col-md-6">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Tìm kiếm sản phẩm...">
+            <button class="btn btn-primary" type="button">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="d-flex justify-content-end">
+            <div class="dropdown me-3">
+                <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-person fs-4"></i>
+                </a>
+                <ul class="dropdown-menu">
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <li><button class="dropdown-item" @onclick="Logout">Đăng xuất</button></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#">Tài khoản của tôi</a></li>
+                            <li><a class="dropdown-item" href="#">Đơn hàng</a></li>
+                        </Authorized>
+                        <NotAuthorized>
+                            <li><a class="dropdown-item" href="/login">Đăng nhập</a></li>
+                            <li><a class="dropdown-item" href="/register">Đăng ký</a></li>
+                        </NotAuthorized>    
+                    </AuthorizeView>
+                </ul>
+            </div>
+            <div class="dropdown me-3">
+                <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-heart fs-4"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        2
+                    </span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end" style="min-width: 300px;">
+                    <h6 class="dropdown-header">Sản phẩm yêu thích</h6>
+                    <div class="dropdown-item d-flex align-items-center">
+                        <img src="https://placehold.co/50" class="me-2" alt="Product">
+                        <div>
+                            <p class="mb-0">Gọng kính model 1</p>
+                            <small class="text-muted">1.300.000đ</small>
+                        </div>
+                    </div>
+                    <div class="dropdown-item d-flex align-items-center">
+                        <img src="https://placehold.co/50" class="me-2" alt="Product">
+                        <div>
+                            <p class="mb-0">Gọng kính model 3</p>
+                            <small class="text-muted">1.500.000đ</small>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-center" href="#">Xem tất cả</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <a href="/cart" class="text-dark text-decoration-none">
+                    <i class="bi bi-cart3 fs-4"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        3
+                    </span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    private bool isLoggedIn;
+    private string? accessToken;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckLoginStatus();
+    }
+
+    private async Task CheckLoginStatus()
+    {
+        accessToken = await localStorage.GetItemAsync<string>("accessToken");
+        isLoggedIn = !string.IsNullOrEmpty(accessToken);
+    }
+
+    private async Task Logout()
+    {
+        await localStorage.RemoveItemAsync("accessToken");
+        await localStorage.RemoveItemAsync("refreshToken");
+        isLoggedIn = false;
+        await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        // Redirect
+        NavigationManager.NavigateTo("/");
+
+    }
+}

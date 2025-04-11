@@ -1,0 +1,495 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject ISyncLocalStorageService LocalStorage
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Đăng nhập - Kính Thời Trang</PageTitle>
+
+<div class="login-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4 breadcrumb-wrapper">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Đăng nhập</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-9">
+            <div class="login-card">
+                <div class="row g-0">
+                    <div class="col-lg-5 d-none d-lg-block position-relative">
+                        <div class="login-banner">
+                            <div class="overlay"></div>
+                            <div class="banner-content">
+                                <i class="bi bi-eyeglasses display-1 mb-3 text-glow"></i>
+                                <h3 class="fw-bold mb-3">Chào mừng trở lại</h3>
+                                <p class="mb-4">Khám phá bộ sưu tập gọng kính thời trang mới nhất và độc đáo nhất</p>
+                                <a href="/register" class="btn btn-outline-light btn-registration rounded-pill px-4">
+                                    <span>Tạo tài khoản mới</span>
+                                    <i class="bi bi-arrow-right-short ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7">
+                        <div class="login-form-container">
+                            <div class="text-center mb-4 d-lg-none">
+                                <i class="bi bi-eyeglasses display-5 text-primary"></i>
+                            </div>
+                            <h2 class="login-title text-center">Đăng nhập</h2>
+
+                            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="needs-validation">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary class="text-danger small mb-3" />
+
+                                <div class="form-floating input-wrapper mb-4">
+                                    <InputText id="email" class="form-control" @bind-Value="loginModel.Email" placeholder="Email" />
+                                    <label for="email">
+                                        <i class="bi bi-envelope-fill me-2 text-primary"></i>Email
+                                    </label>
+                                    <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small" />
+                                </div>
+
+                                <div class="form-floating input-wrapper mb-3">
+                                    <div class="input-group"> 
+                                        <InputText type="@(showPassword ? "text" : "password")" id="password" class="form-control" @bind-Value="loginModel.Password" placeholder="Mật khẩu" /> 
+                                        <button type="button" class="password-toggle" @onclick="TogglePasswordVisibility"> 
+                                            <i class="bi @(showPassword ? "bi-eye-slash-fill" : "bi-eye-fill")"></i> 
+                                        </button> 
+                                    </div>
+                                    <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small" /> 
+                                </div> 
+
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    @* <div class="form-check custom-checkbox">
+                                        <InputCheckbox id="rememberMe" class="form-check-input" @bind-Value="loginModel.RememberMe" />
+                                        <label class="form-check-label" for="rememberMe">Ghi nhớ đăng nhập</label>
+                                    </div> *@
+                                    <a href="/forgot-password" class="forgot-password">Quên mật khẩu?</a>
+                                </div>
+
+                                <button type="submit" class="btn-login">
+                                    @if (isLoggingIn)
+                                    {
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            <span>Đang đăng nhập...</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span>Đăng nhập</span>
+                                        <i class="bi bi-box-arrow-in-right ms-2"></i>
+                                    }
+                                </button>
+
+                                <div class="divider">
+                                    <span>hoặc đăng nhập với</span>
+                                </div>
+
+                                <div class="social-login">
+                                    <button type="button" class="btn-social btn-facebook" @onclick="LoginWithFacebook">
+                                        <i class="bi bi-facebook"></i>
+                                        <span>Facebook</span>
+                                    </button>
+                                    <button type="button" class="btn-social btn-google" @onclick="LoginWithGoogle">
+                                        <i class="bi bi-google"></i>
+                                        <span>Google</span>
+                                    </button>
+                                </div>
+                            </EditForm>
+
+                            <div class="text-center mt-4 d-lg-none">
+                                <p class="mb-0 register-link">Chưa có tài khoản? <a href="/register">Đăng ký ngay</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    }
+
+    .breadcrumb-wrapper {
+    margin-bottom: 2rem;
+    }
+
+    .breadcrumb-item a {
+    color: #666;
+    text-decoration: none;
+    transition: color 0.3s;
+    }
+
+    .breadcrumb-item a:hover {
+    color: var(--bs-primary);
+    }
+
+    .login-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .login-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .login-banner {
+    height: 100%;
+    background-image: url('https://images.unsplash.com/photo-1574258495973-f010dfbb5371?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    }
+
+    .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0,123,255,0.85) 0%, rgba(13,110,253,0.75) 100%);
+    }
+
+    .banner-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    width: 90%;
+    z-index: 1;
+    }
+
+    .text-glow {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-registration {
+    border: 2px solid white;
+    transition: all 0.3s;
+    font-weight: 500;
+    }
+
+    .btn-registration:hover {
+    background-color: white;
+    color: var(--bs-primary);
+    transform: translateY(-3px);
+    }
+
+    .login-form-container {
+    padding: 3rem 2.5rem;
+    }
+
+    .login-title {
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: #333;
+    position: relative;
+    display: inline-block;
+    left: 50%;
+    transform: translateX(-50%);
+    }
+
+    .login-title:after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 3px;
+    background: var(--bs-primary);
+    bottom: -10px;
+    left: 25%;
+    border-radius: 2px;
+    }
+
+    .input-wrapper {
+    margin-bottom: 1.5rem;
+    }
+
+    .form-control {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.5rem 1rem;
+    background-color: #f8f9fa;
+    transition: all 0.3s;
+    }
+
+    .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    border-color: #86b7fe;
+    background-color: #fff;
+    }
+
+    .input-group .form-control {
+    border-right: none;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    }
+
+    .password-toggle {
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+    padding: 0 1rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s;
+    }
+
+    .password-toggle:hover {
+    color: var(--bs-primary);
+    }
+
+    .custom-checkbox .form-check-input {
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 4px;
+    border: 1px solid #adb5bd;
+    }
+
+    .custom-checkbox .form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    }
+
+    .custom-checkbox .form-check-label {
+    font-size: 0.9rem;
+    color: #555;
+    }
+
+    .forgot-password {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    text-decoration: none;
+    transition: all 0.3s;
+    }
+
+    .forgot-password:hover {
+    color: #0b5ed7;
+    text-decoration: underline;
+    }
+
+    .btn-login {
+    width: 100%;
+    padding: 0.8rem;
+    border-radius: 10px;
+    background: linear-gradient(45deg, #0d6efd, #0a58ca);
+    color: white;
+    font-weight: 600;
+    border: none;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    }
+
+    .btn-login:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, #0a58ca, #0d6efd);
+    transition: all 0.4s;
+    z-index: -1;
+    }
+
+    .btn-login:hover:before {
+    left: 0;
+    }
+
+    .btn-login:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(13, 110, 253, 0.4);
+    }
+
+    .divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+    color: #6c757d;
+    }
+
+    .divider::before,
+    .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e0e0e0;
+    }
+
+    .divider span {
+    padding: 0 1rem;
+    font-size: 0.9rem;
+    background: #fff;
+    }
+
+    .social-login {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    }
+
+    .btn-social {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s;
+    border: none;
+    color: white;
+    }
+
+    .btn-facebook {
+    background-color: #3b5998;
+    }
+
+    .btn-google {
+    background-color: #dd4b39;
+    }
+
+    .btn-social:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .register-link {
+    font-size: 0.95rem;
+    color: #555;
+    }
+
+    .register-link a {
+    color: var(--bs-primary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s;
+    }
+
+    .register-link a:hover {
+    text-decoration: underline;
+    }
+
+    @@media (max-width: 991.98px) {
+    .login-form-container {
+    padding: 2rem 1.5rem;
+    }
+    }
+
+    @@media (max-width: 767.98px) {
+    .login-card {
+    margin: 1rem;
+    }
+    }
+
+    .password-label {
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    z-index: 5;
+    background-color: white;
+    padding: 0 8px;
+    font-size: 14px;
+    color: #6c757d;
+    pointer-events: none;
+    }
+
+    .input-group {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    }
+</style>
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private bool showPassword = false;
+    private bool isLoggingIn = false;
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoggingIn = true;
+
+        var response = await Http.PostAsJsonAsync("https://localhost:7222/api/customers/signin", loginModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            if (result != null)
+            {
+                // Lưu token vào LocalStorage hoặc SessionStorage
+                LocalStorage.SetItemAsString("accessToken", result.accessToken);
+                LocalStorage.SetItemAsString("refreshToken", result.refreshToken);
+                
+                // Chuyển hướng đến trang chính
+                await AuthStateProvider.GetAuthenticationStateAsync();
+                Navigation.NavigateTo("/");
+            }
+        }
+        else
+        {
+            // Xử lý lỗi đăng nhập
+            var errorMessage = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Đăng nhập thất bại: {errorMessage}");
+        }
+        
+        isLoggingIn = false;
+    }
+
+    private void LoginWithFacebook()
+    {
+        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Facebook
+    }
+
+    private void LoginWithGoogle()
+    {
+        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Google
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập email")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu")]
+        [MinLength(8, ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LoginResponse
+    {
+        public string accessToken { get; set; } = string.Empty;
+        public string refreshToken { get; set; } = string.Empty;
+    }
+} 

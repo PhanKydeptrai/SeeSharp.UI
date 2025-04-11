@@ -1,0 +1,138 @@
+@page "/"
+
+<PageTitle>Trang chủ - Kính Thời Trang</PageTitle>
+
+<div class="container mt-4">
+    <!-- Hero Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark text-white">
+                <img src="https://placehold.co/1200x400" class="card-img" alt="Banner kính thời trang">
+                <div class="card-img-overlay d-flex flex-column justify-content-center">
+                    <h1 class="card-title">Gọng kính thời trang cao cấp</h1>
+                    <p class="card-text">Khám phá bộ sưu tập gọng kính mới nhất với thiết kế hiện đại và chất lượng hàng đầu</p>
+                    <a href="/collections" class="btn btn-primary w-25">Xem sản phẩm</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Featured Products -->
+    <h2 class="mb-4">Sản phẩm nổi bật</h2>
+    <div class="row mb-5">
+        @for (int i = 1; i <= 4; i++)
+        {
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    <img src="https://placehold.co/300x200" class="card-img-top" alt="Kính mẫu @i">
+                    <div class="card-body">
+                        <h5 class="card-title">Gọng kính model @i</h5>
+                        <p class="card-text">@(1200000 + i * 100000)đ</p>
+                        <a href="/product/@i" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
+                        <button class="btn btn-sm btn-primary">Thêm vào giỏ</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Categories -->
+    <h2 class="mb-4">Danh mục sản phẩm</h2>
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="bi bi-eyeglasses" style="font-size: 2rem;"></i>
+                    <h5 class="mt-3">Gọng kính nam</h5>
+                    <p>Đa dạng mẫu mã phù hợp với phong cách nam tính</p>
+                    <a href="/collections/men" class="btn btn-outline-dark">Xem thêm</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="bi bi-sunglasses" style="font-size: 2rem;"></i>
+                    <h5 class="mt-3">Gọng kính nữ</h5>
+                    <p>Thiết kế thanh lịch, sang trọng dành cho phái đẹp</p>
+                    <a href="/collections/women" class="btn btn-outline-dark">Xem thêm</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="bi bi-stars" style="font-size: 2rem;"></i>
+                    <h5 class="mt-3">Thương hiệu cao cấp</h5>
+                    <p>Sản phẩm từ các nhãn hiệu nổi tiếng trên thế giới</p>
+                    <a href="/collections/luxury" class="btn btn-outline-dark">Xem thêm</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testimonials -->
+    <h2 class="mb-4">Khách hàng nói gì về chúng tôi</h2>
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://placehold.co/50" class="rounded-circle me-3" alt="Avatar">
+                        <div>
+                            <h5 class="mb-0">Nguyễn Văn A</h5>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-text">"Sản phẩm chất lượng, dịch vụ tuyệt vời. Tôi rất hài lòng với gọng kính mới của mình."</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://placehold.co/50" class="rounded-circle me-3" alt="Avatar">
+                        <div>
+                            <h5 class="mb-0">Trần Thị B</h5>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-half"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-text">"Gọng kính rất phù hợp với khuôn mặt, giá cả phải chăng, giao hàng nhanh."</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://placehold.co/50" class="rounded-circle me-3" alt="Avatar">
+                        <div>
+                            <h5 class="mb-0">Lê Văn C</h5>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-text">"Nhân viên tư vấn nhiệt tình, giúp tôi chọn được mẫu kính ưng ý nhất."</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

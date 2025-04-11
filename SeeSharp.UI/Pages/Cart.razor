@@ -1,0 +1,277 @@
+@page "/cart"
+
+<PageTitle>Giỏ hàng - Kính Thời Trang</PageTitle>
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Giỏ hàng</li>
+        </ol>
+    </nav>
+
+    <h2 class="mb-4">Giỏ hàng của bạn</h2>
+
+    @if (CartItems.Count > 0)
+    {
+        <div class="row">
+            <!-- Cart Items -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Sản phẩm (@CartItems.Count)</h5>
+                        <button class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash me-1"></i> Xóa tất cả
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var item in CartItems)
+                        {
+                            <div class="row cart-item mb-3 pb-3 border-bottom">
+                                <div class="col-md-2">
+                                    <img src="https://placehold.co/150" class="img-fluid rounded" alt="@item.Name">
+                                </div>
+                                <div class="col-md-10">
+                                    <div class="d-flex justify-content-between">
+                                        <h5><a href="/product/@item.Id" class="text-decoration-none">@item.Name</a></h5>
+                                        <button class="btn btn-sm btn-link text-danger" @onclick="() => RemoveFromCart(item.Id)">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-muted mb-1">SKU: KM@(1000 + item.Id) | Thương hiệu: @item.Brand</p>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="text-muted me-3">Màu sắc: @item.Color</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="input-group" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => UpdateQuantity(item.Id, item.Quantity - 1)">-</button>
+                                            <input type="text" class="form-control text-center" value="@item.Quantity">
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => UpdateQuantity(item.Id, item.Quantity + 1)">+</button>
+                                        </div>
+                                        <div class="text-end">
+                                            @if (item.DiscountPrice.HasValue)
+                                            {
+                                                <span class="text-decoration-line-through text-muted me-2">@FormatPrice(item.Price)đ</span>
+                                                <span class="text-danger fw-bold">@FormatPrice(item.DiscountPrice.Value)đ</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="fw-bold">@FormatPrice(item.Price)đ</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                
+                <!-- Continue Shopping -->
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="/collections" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left me-1"></i> Tiếp tục mua sắm
+                    </a>
+                    <button class="btn btn-outline-secondary" @onclick="UpdateCart">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Cập nhật giỏ hàng
+                    </button>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tóm tắt đơn hàng</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tạm tính</span>
+                            <span>@FormatPrice(SubTotal)đ</span>
+                        </div>
+                        @if (DiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-success">
+                                <span>Giảm giá</span>
+                                <span>-@FormatPrice(DiscountAmount)đ</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Phí vận chuyển</span>
+                            <span>@(ShippingFee > 0 ? $"{FormatPrice(ShippingFee)}đ" : "Miễn phí")</span>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Tổng cộng</strong>
+                            <strong class="h5 text-danger">@FormatPrice(TotalAmount)đ</strong>
+                        </div>
+
+                        <!-- Coupon Code -->
+                        <div class="mb-3">
+                            <label for="couponCode" class="form-label">Mã giảm giá</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="couponCode" placeholder="Nhập mã giảm giá">
+                                <button class="btn btn-outline-secondary" type="button">Áp dụng</button>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary w-100 mb-3" @onclick="Checkout">
+                            Tiến hành thanh toán
+                        </button>
+
+                        <div class="text-center">
+                            <small class="text-muted">Chúng tôi chấp nhận</small>
+                            <div class="mt-2">
+                                <i class="bi bi-credit-card me-2" style="font-size: 1.5rem;"></i>
+                                <i class="bi bi-paypal me-2" style="font-size: 1.5rem;"></i>
+                                <i class="bi bi-wallet2 me-2" style="font-size: 1.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shipping Estimate -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Ước tính vận chuyển</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="province" class="form-label">Tỉnh/Thành phố</label>
+                            <select class="form-select" id="province">
+                                <option selected>Chọn tỉnh/thành phố</option>
+                                <option value="hanoi">Hà Nội</option>
+                                <option value="hcm">TP. Hồ Chí Minh</option>
+                                <option value="danang">Đà Nẵng</option>
+                                <option value="other">Tỉnh/Thành phố khác</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="district" class="form-label">Quận/Huyện</label>
+                            <select class="form-select" id="district">
+                                <option selected>Chọn quận/huyện</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline-secondary w-100">Tính phí vận chuyển</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Empty Cart -->
+        <div class="text-center py-5">
+            <i class="bi bi-cart-x" style="font-size: 4rem;"></i>
+            <h3 class="mt-3">Giỏ hàng của bạn đang trống</h3>
+            <p class="text-muted">Hãy thêm sản phẩm vào giỏ hàng để tiến hành mua sắm</p>
+            <a href="/collections" class="btn btn-primary mt-3">
+                Tiếp tục mua sắm
+            </a>
+        </div>
+    }
+
+    <!-- Recently Viewed Products -->
+    <div class="mt-5">
+        <h3 class="mb-4">Sản phẩm đã xem gần đây</h3>
+        <div class="row">
+            @for (int i = 1; i <= 4; i++)
+            {
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <img src="https://placehold.co/300x200" class="card-img-top" alt="Kính mẫu @i">
+                        <div class="card-body">
+                            <h5 class="card-title">Gọng kính model @i</h5>
+                            <p class="card-text">@FormatPrice(1200000 + i * 100000)đ</p>
+                            <a href="/product/@i" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
+                            <button class="btn btn-sm btn-primary">
+                                <i class="bi bi-cart-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<CartItem> CartItems { get; set; } = new List<CartItem>();
+    private decimal SubTotal => CartItems.Sum(i => (i.DiscountPrice ?? i.Price) * i.Quantity);
+    private decimal DiscountAmount => CartItems.Sum(i => i.DiscountPrice.HasValue ? (i.Price - i.DiscountPrice.Value) * i.Quantity : 0);
+    private decimal ShippingFee => SubTotal >= 1000000 ? 0 : 30000;
+    private decimal TotalAmount => SubTotal + ShippingFee;
+
+    protected override void OnInitialized()
+    {
+        // Demo data
+        CartItems = new List<CartItem>
+        {
+            new CartItem 
+            { 
+                Id = 1, 
+                Name = "Gọng kính model 1", 
+                Price = 1300000, 
+                Quantity = 1, 
+                Color = "Đen",
+                Brand = "Ray-Ban"
+            },
+            new CartItem 
+            { 
+                Id = 3, 
+                Name = "Gọng kính model 3", 
+                Price = 1500000, 
+                DiscountPrice = 1200000, 
+                Quantity = 2, 
+                Color = "Nâu",
+                Brand = "Gucci"
+            }
+        };
+    }
+
+    private void RemoveFromCart(int id)
+    {
+        var item = CartItems.FirstOrDefault(i => i.Id == id);
+        if (item != null)
+        {
+            CartItems.Remove(item);
+        }
+    }
+
+    private void UpdateQuantity(int id, int newQuantity)
+    {
+        if (newQuantity <= 0) return;
+        
+        var item = CartItems.FirstOrDefault(i => i.Id == id);
+        if (item != null)
+        {
+            item.Quantity = newQuantity;
+        }
+    }
+
+    private void UpdateCart()
+    {
+        // In a real app, this would update the cart on the server
+    }
+
+    private void Checkout()
+    {
+        // In a real app, this would navigate to the checkout page
+    }
+
+    private string FormatPrice(decimal price)
+    {
+        return price.ToString("#,##0");
+    }
+
+    private class CartItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+        public decimal? DiscountPrice { get; set; }
+        public int Quantity { get; set; } = 1;
+        public string Color { get; set; } = "";
+        public string Brand { get; set; } = "";
+    }
+} 

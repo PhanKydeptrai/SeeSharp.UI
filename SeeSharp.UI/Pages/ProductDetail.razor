@@ -1,0 +1,396 @@
+@page "/product/{Id:int}"
+
+<PageTitle>Chi tiết sản phẩm - Kính Thời Trang</PageTitle>
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a href="/collections">Bộ sưu tập</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Gọng kính model @Id</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Product Images -->
+        <div class="col-md-6 mb-4">
+            <div class="product-images">
+                <div class="main-image mb-3">
+                    <img src="https://placehold.co/600x400" class="img-fluid rounded" alt="Gọng kính model @Id">
+                </div>
+                <div class="row thumbnail-images">
+                    <div class="col-3">
+                        <img src="https://placehold.co/600x400" class="img-fluid rounded border border-primary" alt="Thumbnail 1">
+                    </div>
+                    <div class="col-3">
+                        <img src="https://placehold.co/600x400/555/fff" class="img-fluid rounded" alt="Thumbnail 2">
+                    </div>
+                    <div class="col-3">
+                        <img src="https://placehold.co/600x400/777/fff" class="img-fluid rounded" alt="Thumbnail 3">
+                    </div>
+                    <div class="col-3">
+                        <img src="https://placehold.co/600x400/999/fff" class="img-fluid rounded" alt="Thumbnail 4">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="col-md-6">
+            <div class="product-details">
+                <h2 class="mb-2">Gọng kính model @Id</h2>
+                <p class="text-muted mb-2">SKU: KM@(1000 + Id) | Thương hiệu: @GetBrand()</p>
+
+                <div class="d-flex align-items-center mb-3">
+                    <div class="text-warning me-2">
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            if (i < 4)
+                            {
+                                <i class="bi bi-star-fill"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-star-half"></i>
+                            }
+                        }
+                    </div>
+                    <span class="text-muted">@(10 + Id) đánh giá</span>
+                </div>
+
+                @if (Id % 3 == 0)
+                {
+                    <div class="product-price mb-3">
+                        <span class="h4 text-danger me-2">@(1200000 + Id * 100000)đ</span>
+                        <span class="text-decoration-line-through text-muted">@(1500000 + Id * 100000)đ</span>
+                        <span class="badge bg-danger ms-2">Giảm 20%</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="product-price mb-3">
+                        <span class="h4">@(1200000 + Id * 100000)đ</span>
+                    </div>
+                }
+
+                <div class="product-description mb-4">
+                    <p>Gọng kính thời trang cao cấp, thiết kế hiện đại, phù hợp với nhiều khuôn mặt. Chất liệu nhẹ, bền và đẹp, mang lại cảm giác thoải mái khi sử dụng.</p>
+                    <ul>
+                        <li>Chất liệu: Acetate cao cấp</li>
+                        <li>Màu sắc: Đen / Nâu / Xanh</li>
+                        <li>Kích thước: @(50 + (Id % 4))□@(18 + (Id % 3))-@(140 + (Id % 5))</li>
+                        <li>Xuất xứ: Ý</li>
+                        <li>Bảo hành: 12 tháng</li>
+                    </ul>
+                </div>
+
+                <div class="product-variations mb-4">
+                    <h6 class="mb-2">Màu sắc:</h6>
+                    <div class="btn-group mb-3" role="group">
+                        <input type="radio" class="btn-check" name="color" id="color1" checked>
+                        <label class="btn btn-outline-dark" for="color1">Đen</label>
+
+                        <input type="radio" class="btn-check" name="color" id="color2">
+                        <label class="btn btn-outline-dark" for="color2">Nâu</label>
+
+                        <input type="radio" class="btn-check" name="color" id="color3">
+                        <label class="btn btn-outline-dark" for="color3">Xanh</label>
+                    </div>
+                </div>
+
+                <div class="product-actions d-flex mb-4">
+                    <div class="input-group me-3" style="width: 130px;">
+                        <button class="btn btn-outline-secondary" type="button">-</button>
+                        <input type="text" class="form-control text-center" value="1">
+                        <button class="btn btn-outline-secondary" type="button">+</button>
+                    </div>
+                    <button class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-cart-plus me-1"></i> Thêm vào giỏ hàng
+                    </button>
+                </div>
+
+                <div class="product-additional-actions d-flex mb-4">
+                    <button class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-heart me-1"></i> Yêu thích
+                    </button>
+                    <button class="btn btn-outline-secondary">
+                        <i class="bi bi-share me-1"></i> Chia sẻ
+                    </button>
+                </div>
+
+                <div class="shipping-info p-3 bg-light rounded mb-4">
+                    <div class="d-flex mb-2">
+                        <i class="bi bi-truck me-2"></i>
+                        <div>
+                            <strong>Miễn phí vận chuyển</strong>
+                            <p class="mb-0 small">Cho đơn hàng từ 1.000.000đ</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <i class="bi bi-arrow-return-left me-2"></i>
+                        <div>
+                            <strong>Đổi trả miễn phí</strong>
+                            <p class="mb-0 small">Trong vòng 30 ngày</p>
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <i class="bi bi-shield-check me-2"></i>
+                        <div>
+                            <strong>Bảo hành chính hãng</strong>
+                            <p class="mb-0 small">12 tháng theo quy định của nhà sản xuất</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Tabs -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="productTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Mô tả</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button" role="tab" aria-controls="specs" aria-selected="false">Thông số kỹ thuật</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="false">Đánh giá (@(10 + Id))</button>
+                </li>
+            </ul>
+            <div class="tab-content p-4 border border-top-0 rounded-bottom" id="productTabContent">
+                <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
+                    <h4>Gọng kính model @Id</h4>
+                    <p>Gọng kính model @Id là sự kết hợp hoàn hảo giữa thiết kế hiện đại và chất liệu cao cấp. Với kiểu dáng thanh lịch và đường nét tinh tế, sản phẩm mang đến vẻ đẹp sang trọng cho người sử dụng.</p>
+                    <p>Được chế tác từ chất liệu Acetate cao cấp, gọng kính có độ bền cao và trọng lượng nhẹ, mang lại cảm giác thoải mái khi đeo trong thời gian dài. Thiết kế ergonomic giúp gọng kính ôm sát khuôn mặt, phù hợp với nhiều dáng mặt khác nhau.</p>
+                    <p>Sản phẩm có nhiều màu sắc để lựa chọn, từ những gam màu truyền thống như đen, nâu đến những màu sắc hiện đại như xanh dương, giúp bạn dễ dàng phối hợp với trang phục và phong cách cá nhân.</p>
+                </div>
+                <div class="tab-pane fade" id="specs" role="tabpanel" aria-labelledby="specs-tab">
+                    <h4>Thông số kỹ thuật</h4>
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Thương hiệu</th>
+                                <td>@GetBrand()</td>
+                            </tr>
+                            <tr>
+                                <th>Mã sản phẩm</th>
+                                <td>KM@(1000 + Id)</td>
+                            </tr>
+                            <tr>
+                                <th>Chất liệu gọng</th>
+                                <td>Acetate cao cấp</td>
+                            </tr>
+                            <tr>
+                                <th>Màu sắc</th>
+                                <td>Đen / Nâu / Xanh</td>
+                            </tr>
+                            <tr>
+                                <th>Kích thước</th>
+                                <td>@(50 + (Id % 4))□@(18 + (Id % 3))-@(140 + (Id % 5))</td>
+                            </tr>
+                            <tr>
+                                <th>Xuất xứ</th>
+                                <td>Ý</td>
+                            </tr>
+                            <tr>
+                                <th>Bảo hành</th>
+                                <td>12 tháng</td>
+                            </tr>
+                            <tr>
+                                <th>Phụ kiện kèm theo</th>
+                                <td>Hộp đựng, khăn lau, thẻ bảo hành</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Đánh giá từ khách hàng</h4>
+                        <button class="btn btn-primary">Viết đánh giá</button>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="text-center mb-4">
+                                <h2 class="mb-0">4.5/5</h2>
+                                <div class="text-warning mb-2">
+                                    <i class="bi bi-star-fill"></i>
+                                    <i class="bi bi-star-fill"></i>
+                                    <i class="bi bi-star-fill"></i>
+                                    <i class="bi bi-star-fill"></i>
+                                    <i class="bi bi-star-half"></i>
+                                </div>
+                                <p class="text-muted">@(10 + Id) đánh giá</p>
+                            </div>
+                            
+                            <div class="ratings-breakdown">
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="text-nowrap me-2">5 <i class="bi bi-star-fill"></i></div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: 75%"></div>
+                                    </div>
+                                    <div class="ms-2">75%</div>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="text-nowrap me-2">4 <i class="bi bi-star-fill"></i></div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: 20%"></div>
+                                    </div>
+                                    <div class="ms-2">20%</div>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="text-nowrap me-2">3 <i class="bi bi-star-fill"></i></div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-warning" style="width: 5%"></div>
+                                    </div>
+                                    <div class="ms-2">5%</div>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="text-nowrap me-2">2 <i class="bi bi-star-fill"></i></div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                    </div>
+                                    <div class="ms-2">0%</div>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <div class="text-nowrap me-2">1 <i class="bi bi-star-fill"></i></div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                    </div>
+                                    <div class="ms-2">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <!-- Review Item -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
+                                            <div>
+                                                <h6 class="mb-0">Nguyễn Văn A</h6>
+                                                <div class="text-warning">
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">12/05/2023</small>
+                                    </div>
+                                    <h6>Sản phẩm tuyệt vời!</h6>
+                                    <p>Tôi rất hài lòng với sản phẩm này. Chất lượng tốt, thiết kế đẹp và rất phù hợp với khuôn mặt của tôi. Đặc biệt, gọng kính rất nhẹ, đeo cả ngày không bị đau tai.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Review Item -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
+                                            <div>
+                                                <h6 class="mb-0">Trần Thị B</h6>
+                                                <div class="text-warning">
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">05/04/2023</small>
+                                    </div>
+                                    <h6>Sản phẩm chất lượng</h6>
+                                    <p>Gọng kính rất đẹp và chắc chắn. Tôi đã đeo được hơn 1 tháng và rất hài lòng. Dịch vụ giao hàng nhanh, đóng gói cẩn thận.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Review Item -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
+                                            <div>
+                                                <h6 class="mb-0">Phạm Văn C</h6>
+                                                <div class="text-warning">
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star-fill"></i>
+                                                    <i class="bi bi-star"></i>
+                                                    <i class="bi bi-star"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">20/03/2023</small>
+                                    </div>
+                                    <h6>Sản phẩm tạm ổn</h6>
+                                    <p>Gọng kính đẹp nhưng hơi cứng, cần thời gian để làm quen. Nhân viên tư vấn nhiệt tình.</p>
+                                </div>
+                            </div>
+                            
+                            <nav aria-label="Review pagination" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Trước</a>
+                                    </li>
+                                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="#">Sau</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Products -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="mb-4">Sản phẩm liên quan</h3>
+            <div class="row">
+                @for (int i = 1; i <= 4; i++)
+                {
+                    int productId = (Id + i) % 20 + 1;
+                    <div class="col-md-3 mb-4">
+                        <div class="card h-100">
+                            <img src="https://placehold.co/300x200" class="card-img-top" alt="Kính mẫu @productId">
+                            <div class="card-body">
+                                <h5 class="card-title">Gọng kính model @productId</h5>
+                                <p class="card-text">@(1200000 + productId * 100000)đ</p>
+                                <a href="/product/@productId" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
+                                <button class="btn btn-sm btn-primary">
+                                    <i class="bi bi-cart-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private string GetBrand()
+    {
+        string[] brands = { "Ray-Ban", "Gucci", "Oakley", "Prada" };
+        return brands[Id % brands.Length];
+    }
+} 
