@@ -45,6 +45,21 @@
                             </div>
                             <h2 class="login-title text-center">Đăng nhập</h2>
 
+                            @if (notificationStatus == NotificationStatus.Fail)
+                            {
+                                <div class="alert-custom alert-danger-custom fade show" style="@animationStyle" role="alert">
+                                    <div class="alert-icon">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    </div>
+                                    <div class="alert-message">
+                                        Đăng nhập không thành công!
+                                    </div>
+                                    <button type="button" class="alert-close" @onclick="CloseNotification">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            }
+
                             <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" class="needs-validation">
                                 <DataAnnotationsValidator />
                                 <ValidationSummary class="text-danger small mb-3" />
@@ -406,6 +421,64 @@
     }
     }
 
+    .alert-custom {
+        position: relative;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .alert-danger-custom {
+        background-color: #fff8f8;
+        border-left: 5px solid #dc3545;
+        color: #842029;
+    }
+
+    .alert-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background-color: rgba(220, 53, 69, 0.2);
+        border-radius: 50%;
+        margin-right: 1rem;
+    }
+
+    .alert-danger-custom .alert-icon i {
+        color: #dc3545;
+        font-size: 1.2rem;
+    }
+
+    .alert-message {
+        font-weight: 600;
+        font-size: 1.05rem;
+        flex-grow: 1;
+        text-align: center;
+    }
+
+    .alert-close {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 0.5rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #842029;
+        opacity: 0.6;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+    }
+
+    .alert-close:hover {
+        opacity: 1;
+    }
+
     .password-label {
     position: absolute;
     top: -8px;
@@ -430,10 +503,37 @@
     private bool showPassword = false;
     private bool isLoggingIn = false;
     private string errorMessage = string.Empty;
+    public NotificationStatus notificationStatus = NotificationStatus.None;
+    private string animationStyle = "opacity: 0; transform: translateY(-20px);";
+
+    public enum NotificationStatus
+    {
+        None = 0,
+        Success = 1,
+        Fail = 2
+    }
 
     private void TogglePasswordVisibility()
     {
         showPassword = !showPassword;
+    }
+
+    private void CloseNotification()
+    {
+        notificationStatus = NotificationStatus.None;
+        animationStyle = "opacity: 0; transform: translateY(-20px); transition: opacity 0.5s ease, transform 0.5s ease;";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (notificationStatus == NotificationStatus.Fail)
+        {
+            await Task.Delay(50);
+            animationStyle = "opacity: 1; transform: translateY(0); transition: all 0.5s ease-out;";
+            StateHasChanged();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     protected override async Task OnInitializedAsync()
@@ -483,6 +583,9 @@
             // Xử lý lỗi đăng nhập
             errorMessage = await response.Content.ReadAsStringAsync();
             Console.WriteLine($"Đăng nhập thất bại: {errorMessage}");
+            notificationStatus = NotificationStatus.Fail;
+            animationStyle = "opacity: 0; transform: translateY(-20px);";
+            StateHasChanged();
         }
 
         isLoggingIn = false;
@@ -490,16 +593,34 @@
 
     private void LoginWithGitHub()
     {
-        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực GitHub
+        try
+        {
+            isLoggingIn = true;
+            Navigation.NavigateTo("https://localhost:7222/api/customers/signin-github");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi đăng nhập GitHub: {ex.Message}");
+            notificationStatus = NotificationStatus.Fail;
+            StartNotificationAnimation();
+            isLoggingIn = false;
+        }
     }
 
-    private async Task LoginWithGoogle()
+    private void LoginWithGoogle()
     {
-        isLoggingIn = true;
-
-        Navigation.NavigateTo("https://localhost:7222/api/customers/signin-google");
-
-        isLoggingIn = false;
+        try
+        {
+            isLoggingIn = true;
+            Navigation.NavigateTo("https://localhost:7222/api/customers/signin-google");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi đăng nhập Google: {ex.Message}");
+            notificationStatus = NotificationStatus.Fail;
+            StartNotificationAnimation();
+            isLoggingIn = false;
+        }
     }
 
     public class LoginModel
@@ -518,5 +639,9 @@
         public string accessToken { get; set; } = string.Empty;
         public string refreshToken { get; set; } = string.Empty;
     }
-   
+    
+    private void StartNotificationAnimation()
+    {
+        animationStyle = "opacity: 1; transform: translateY(0); transition: opacity 0.5s ease, transform 0.5s ease;";
+    }
 } 
