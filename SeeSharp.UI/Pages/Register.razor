@@ -1,7 +1,9 @@
 @page "/register"
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.JSInterop
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 <PageTitle>Đăng ký - Kính Thời Trang</PageTitle>
 
 <div class="register-container">
@@ -37,7 +39,20 @@
                                 <i class="bi bi-person-plus-fill display-5 text-primary"></i>
                             </div>
                             <h2 class="register-title text-center">Đăng ký tài khoản</h2>
-
+                            @if (notificationStatus == NotificationStatus.Fail)
+                            {
+                                <div class="alert-custom alert-danger-custom fade show" style="@animationStyle" role="alert">
+                                    <div class="alert-icon">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    </div>
+                                    <div class="alert-message">
+                                        Đăng ký không thành công!
+                                    </div>
+                                    <button type="button" class="alert-close" @onclick="CloseNotification">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            }
                             <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" class="needs-validation">
                                 <DataAnnotationsValidator />
                                 <ValidationSummary class="text-danger small mb-3" />
@@ -101,9 +116,9 @@
                                 </div>
 
                                 <div class="social-login">
-                                    <button type="button" class="btn-social btn-facebook" @onclick="RegisterWithFacebook">
-                                        <i class="bi bi-facebook"></i>
-                                        <span>Facebook</span>
+                                    <button type="button" class="btn-social btn-github" @onclick="RegisterWithGitHub">
+                                        <i class="bi bi-github"></i>
+                                        <span>GitHub</span>
                                     </button>
                                     <button type="button" class="btn-social btn-google" @onclick="RegisterWithGoogle">
                                         <i class="bi bi-google"></i>
@@ -175,128 +190,128 @@
     }
 
     .banner-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: white;
-    width: 90%;
-    z-index: 1;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        width: 90%;
+        z-index: 1;
     }
 
     .text-glow {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
     }
 
     .btn-login-alt {
-    border: 2px solid white;
-    transition: all 0.3s;
-    font-weight: 500;
+        border: 2px solid white;
+        transition: all 0.3s;
+        font-weight: 500;
     }
 
     .btn-login-alt:hover {
-    background-color: white;
-    color: var(--bs-primary);
-    transform: translateY(-3px);
+        background-color: white;
+        color: var(--bs-primary);
+        transform: translateY(-3px);
     }
 
     .register-form-container {
-    padding: 3rem 2.5rem;
+        padding: 3rem 2.5rem;
     }
 
     .register-title {
-    font-weight: 700;
-    margin-bottom: 2rem;
-    color: #333;
-    position: relative;
-    display: inline-block;
-    left: 50%;
-    transform: translateX(-50%);
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: #333;
+        position: relative;
+        display: inline-block;
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     .register-title:after {
-    content: '';
-    position: absolute;
-    width: 50%;
-    height: 3px;
-    background: var(--bs-primary);
-    bottom: -10px;
-    left: 25%;
-    border-radius: 2px;
+        content: '';
+        position: absolute;
+        width: 50%;
+        height: 3px;
+        background: var(--bs-primary);
+        bottom: -10px;
+        left: 25%;
+        border-radius: 2px;
     }
 
     .input-wrapper {
-    margin-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
     }
 
     .form-control {
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 1.5rem 1rem;
-    background-color: #f8f9fa;
-    transition: all 0.3s;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1.5rem 1rem;
+        background-color: #f8f9fa;
+        transition: all 0.3s;
     }
 
     .form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-    border-color: #86b7fe;
-    background-color: #fff;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        border-color: #86b7fe;
+        background-color: #fff;
     }
 
     .input-group .form-control {
-    border-right: none;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+        border-right: none;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
     }
 
     .input-group {
-    position: relative;
-    border-radius: 10px;
-    overflow: hidden;
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
     }
 
     .password-toggle {
-    background-color: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-left: none;
-    border-radius: 0 10px 10px 0;
-    padding: 0 1rem;
-    color: #6c757d;
-    cursor: pointer;
-    transition: all 0.3s;
+        background-color: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+        padding: 0 1rem;
+        color: #6c757d;
+        cursor: pointer;
+        transition: all 0.3s;
     }
 
     .password-toggle:hover {
-    color: var(--bs-primary);
+        color: var(--bs-primary);
     }
 
     .password-requirements {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
     }
 
     .password-requirements > div {
-    flex: 1 0 30%;
-    font-size: 0.8rem;
+        flex: 1 0 30%;
+        font-size: 0.8rem;
     }
 
     .custom-checkbox .form-check-input {
-    width: 1.1em;
-    height: 1.1em;
-    border-radius: 4px;
-    border: 1px solid #adb5bd;
+        width: 1.1em;
+        height: 1.1em;
+        border-radius: 4px;
+        border: 1px solid #adb5bd;
     }
 
     .custom-checkbox .form-check-input:checked {
-    background-color: var(--bs-primary);
-    border-color: var(--bs-primary);
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
     }
 
     .custom-checkbox .form-check-label {
-    font-size: 0.9rem;
-    color: #555;
+        font-size: 0.9rem;
+        color: #555;
     }
 
     .terms-link {
@@ -390,8 +405,8 @@
     color: white;
     }
 
-    .btn-facebook {
-    background-color: #3b5998;
+    .btn-github {
+    background-color: #333;
     }
 
     .btn-google {
@@ -430,6 +445,68 @@
     margin: 1rem;
     }
     }
+
+    .alert-close:hover {
+        opacity: 1;
+    }
+
+    .alert-custom {
+        position: relative;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .alert-danger-custom {
+        background-color: #fff8f8;
+        border-left: 5px solid #dc3545;
+        color: #842029;
+    }
+
+    .alert-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background-color: rgba(220, 53, 69, 0.2);
+        border-radius: 50%;
+        margin-right: 1rem;
+    }
+
+    .alert-danger-custom .alert-icon i {
+        color: #dc3545;
+        font-size: 1.2rem;
+    }
+
+    .alert-message {
+        font-weight: 600;
+        font-size: 1.05rem;
+        flex-grow: 1;
+        text-align: center;
+    }
+
+    .alert-close {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 0.5rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #842029;
+        opacity: 0.6;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+    }
+
+    .alert-close:hover {
+        opacity: 1;
+    }
 </style>
 
 @code {
@@ -438,15 +515,37 @@
     private bool showConfirmPassword = false;
     private bool isRegistering = false;
     public bool AgreeToTerms = false;
+    public NotificationStatus notificationStatus = NotificationStatus.None;
+    private string animationStyle = "opacity: 0; transform: translateY(-20px);";
+    private string googleClientId = "188786851531-n0il5t6b3eqmqhvqe1e9tan988bvugl6.apps.googleusercontent.com"; // Đã cập nhật Client ID
 
-    private void TogglePasswordVisibility()
+    public enum NotificationStatus
     {
-        showPassword = !showPassword;
+        None = 0,
+        Success = 1,
+        Fail = 2
     }
 
-    private void ToggleConfirmPasswordVisibility()
+    private void TogglePasswordVisibility() => showPassword = !showPassword;
+
+    private void ToggleConfirmPasswordVisibility() => showConfirmPassword = !showConfirmPassword;
+    
+    private void CloseNotification()
     {
-        showConfirmPassword = !showConfirmPassword;
+        notificationStatus = NotificationStatus.None;
+        animationStyle = "opacity: 0; transform: translateY(-20px); transition: opacity 0.5s ease, transform 0.5s ease;";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (notificationStatus == NotificationStatus.Fail)
+        {
+            await Task.Delay(50);
+            animationStyle = "opacity: 1; transform: translateY(0); transition: all 0.5s ease-out;";
+            StateHasChanged();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private async Task HandleRegister()
@@ -467,6 +566,7 @@
         }
         else
         {
+            notificationStatus = NotificationStatus.Fail;
             var errorMessage = await response.Content.ReadAsStringAsync();
             Console.WriteLine($"Đăng nhập thất bại: {errorMessage}");
         }
@@ -474,14 +574,51 @@
         isRegistering = false;
     }
 
-    private void RegisterWithFacebook()
+    private void RegisterWithGitHub()
     {
-        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Facebook
+        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực GitHub
     }
 
-    private void RegisterWithGoogle()
+    private async Task RegisterWithGoogle()
     {
-        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Google
+        try
+        {
+            // Sử dụng JSInterop để gọi Google Authentication API
+            var googleAuthResult = await JSRuntime.InvokeAsync<GoogleAuthResponse>("googleAuthenticate", googleClientId);
+            
+            if (googleAuthResult != null && !string.IsNullOrEmpty(googleAuthResult.IdToken))
+            {
+                isRegistering = true;
+                
+                // Gửi id_token tới API backend để đăng ký
+                var response = await Http.PostAsJsonAsync("https://localhost:7222/api/customers/google-signup", 
+                    new GoogleSignUpRequest { IdToken = googleAuthResult.IdToken });
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Đăng ký thành công, chuyển hướng đến trang đăng nhập
+                    NavigationManager.NavigateTo("/login");
+                }
+                else
+                {
+                    // Xử lý lỗi đăng ký
+                    var errorMessage = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Đăng ký Google thất bại: {errorMessage}");
+                    
+                    // Set notification status to fail if appropriate
+                    notificationStatus = NotificationStatus.Fail;
+                    StartNotificationAnimation();
+                }
+                
+                isRegistering = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi đăng ký Google: {ex.Message}");
+            notificationStatus = NotificationStatus.Fail;
+            StartNotificationAnimation();
+        }
     }
 
     public class ResgisterRequest
@@ -514,5 +651,23 @@
         [Range(typeof(bool), "true", "true", ErrorMessage = "Bạn phải đồng ý với điều khoản sử dụng")]
         [Display(Name = "Đồng ý với điều khoản")]
         public bool AgreeToTerms { get; set; }
+    }
+
+    public class GoogleAuthResponse
+    {
+        public string IdToken { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+    }
+    
+    public class GoogleSignUpRequest
+    {
+        public string IdToken { get; set; } = string.Empty;
+    }
+
+    private void StartNotificationAnimation()
+    {
+        animationStyle = "opacity: 1; transform: translateY(0); transition: opacity 0.5s ease, transform 0.5s ease;";
     }
 } 

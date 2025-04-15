@@ -1,10 +1,13 @@
 @page "/login"
 @using System.ComponentModel.DataAnnotations
 @using Blazored.LocalStorage
+@using Microsoft.JSInterop
+@using SeeSharp.UI.Models
 @inject HttpClient Http
 @inject ISyncLocalStorageService LocalStorage
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Đăng nhập - Kính Thời Trang</PageTitle>
 
@@ -65,10 +68,6 @@
                                 </div> 
 
                                 <div class="d-flex justify-content-between align-items-center mb-4">
-                                    @* <div class="form-check custom-checkbox">
-                                        <InputCheckbox id="rememberMe" class="form-check-input" @bind-Value="loginModel.RememberMe" />
-                                        <label class="form-check-label" for="rememberMe">Ghi nhớ đăng nhập</label>
-                                    </div> *@
                                     <a href="/forgot-password" class="forgot-password">Quên mật khẩu?</a>
                                 </div>
 
@@ -92,9 +91,9 @@
                                 </div>
 
                                 <div class="social-login">
-                                    <button type="button" class="btn-social btn-facebook" @onclick="LoginWithFacebook">
-                                        <i class="bi bi-facebook"></i>
-                                        <span>Facebook</span>
+                                    <button type="button" class="btn-social btn-github" @onclick="LoginWithGitHub">
+                                        <i class="bi bi-github"></i>
+                                        <span>GitHub</span>
                                     </button>
                                     <button type="button" class="btn-social btn-google" @onclick="LoginWithGoogle">
                                         <i class="bi bi-google"></i>
@@ -366,8 +365,8 @@
     color: white;
     }
 
-    .btn-facebook {
-    background-color: #3b5998;
+    .btn-github {
+    background-color: #333;
     }
 
     .btn-google {
@@ -430,10 +429,33 @@
     private LoginModel loginModel = new();
     private bool showPassword = false;
     private bool isLoggingIn = false;
+    private string errorMessage = string.Empty;
 
     private void TogglePasswordVisibility()
     {
         showPassword = !showPassword;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("token", out var accessToken))
+
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("token", out var refreshToken))
+
+                if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(refreshToken))
+                {
+                    // Lưu accessToken và refreshToken vào LocalStorage
+                    LocalStorage.SetItemAsString("accessToken", accessToken);
+                    LocalStorage.SetItemAsString("refreshToken", refreshToken);
+
+                    await AuthStateProvider.GetAuthenticationStateAsync();
+                    // Chuyển hướng đến trang chính
+                    Navigation.NavigateTo("/");
+                }
+
+        isLoggingIn = false;
     }
 
     private async Task HandleLogin()
@@ -450,7 +472,7 @@
                 // Lưu token vào LocalStorage hoặc SessionStorage
                 LocalStorage.SetItemAsString("accessToken", result.accessToken);
                 LocalStorage.SetItemAsString("refreshToken", result.refreshToken);
-                
+
                 // Chuyển hướng đến trang chính
                 await AuthStateProvider.GetAuthenticationStateAsync();
                 Navigation.NavigateTo("/");
@@ -459,21 +481,25 @@
         else
         {
             // Xử lý lỗi đăng nhập
-            var errorMessage = await response.Content.ReadAsStringAsync();
+            errorMessage = await response.Content.ReadAsStringAsync();
             Console.WriteLine($"Đăng nhập thất bại: {errorMessage}");
         }
-        
+
         isLoggingIn = false;
     }
 
-    private void LoginWithFacebook()
+    private void LoginWithGitHub()
     {
-        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Facebook
+        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực GitHub
     }
 
-    private void LoginWithGoogle()
+    private async Task LoginWithGoogle()
     {
-        // Trong thực tế, đây là nơi bạn sẽ điều hướng người dùng đến trang xác thực Google
+        isLoggingIn = true;
+
+        Navigation.NavigateTo("https://localhost:7222/api/customers/signin-google");
+
+        isLoggingIn = false;
     }
 
     public class LoginModel
@@ -492,4 +518,5 @@
         public string accessToken { get; set; } = string.Empty;
         public string refreshToken { get; set; } = string.Empty;
     }
+   
 } 

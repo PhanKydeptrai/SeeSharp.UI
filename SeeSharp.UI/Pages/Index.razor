@@ -1,5 +1,6 @@
 @page "/"
-
+@using Blazored.LocalStorage
+@inject AuthenticationStateProvider AuthenticationStateProvider
 <PageTitle>Trang chủ - Gọng Kính Thời Trang C#</PageTitle>
 
 <div class="container mt-4">
@@ -136,3 +137,10 @@
         </div>
     </div>
 </div> 
+
+@code{
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    }
+}
