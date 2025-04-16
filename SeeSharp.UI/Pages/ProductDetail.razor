@@ -1,396 +1,922 @@
-@page "/product/{Id:int}"
+@page "/product/{Id}"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>Chi tiết sản phẩm - Kính Thời Trang</PageTitle>
 
-<div class="container mt-4">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="/collections">Bộ sưu tập</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Gọng kính model @Id</li>
-        </ol>
-    </nav>
+<style>
+    .toast-container {
+        z-index: 1080;
+    }
+    
+    .toast {
+        min-width: 300px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        animation: toast-in-right 0.3s ease-in-out;
+    }
+    
+    @@keyframes toast-in-right {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .toast-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 1rem;
+    }
+    
+    .toast .btn-close {
+        background-color: transparent;
+        opacity: 0.8;
+    }
+    
+    .toast .btn-close:hover {
+        opacity: 1;
+    }
+</style>
 
-    <div class="row">
-        <!-- Product Images -->
-        <div class="col-md-6 mb-4">
-            <div class="product-images">
-                <div class="main-image mb-3">
-                    <img src="https://placehold.co/600x400" class="img-fluid rounded" alt="Gọng kính model @Id">
-                </div>
-                <div class="row thumbnail-images">
-                    <div class="col-3">
-                        <img src="https://placehold.co/600x400" class="img-fluid rounded border border-primary" alt="Thumbnail 1">
-                    </div>
-                    <div class="col-3">
-                        <img src="https://placehold.co/600x400/555/fff" class="img-fluid rounded" alt="Thumbnail 2">
-                    </div>
-                    <div class="col-3">
-                        <img src="https://placehold.co/600x400/777/fff" class="img-fluid rounded" alt="Thumbnail 3">
-                    </div>
-                    <div class="col-3">
-                        <img src="https://placehold.co/600x400/999/fff" class="img-fluid rounded" alt="Thumbnail 4">
-                    </div>
-                </div>
+<!-- Toast Notification Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+    @foreach (var toast in toastNotifications)
+    {
+        <div class="toast show mb-2" role="alert" aria-live="assertive" aria-atomic="true" id="@toast.Id">
+            <div class="toast-header @toast.HeaderClass">
+                <i class="bi @toast.Icon me-2"></i>
+                <strong class="me-auto">@toast.Title</strong>
+                <small>@toast.Timestamp.ToString("HH:mm:ss")</small>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="() => RemoveToast(toast)"></button>
             </div>
-        </div>
-
-        <!-- Product Details -->
-        <div class="col-md-6">
-            <div class="product-details">
-                <h2 class="mb-2">Gọng kính model @Id</h2>
-                <p class="text-muted mb-2">SKU: KM@(1000 + Id) | Thương hiệu: @GetBrand()</p>
-
-                <div class="d-flex align-items-center mb-3">
-                    <div class="text-warning me-2">
-                        @for (int i = 0; i < 5; i++)
-                        {
-                            if (i < 4)
-                            {
-                                <i class="bi bi-star-fill"></i>
-                            }
-                            else
-                            {
-                                <i class="bi bi-star-half"></i>
-                            }
-                        }
-                    </div>
-                    <span class="text-muted">@(10 + Id) đánh giá</span>
-                </div>
-
-                @if (Id % 3 == 0)
+            <div class="toast-body">
+                @if (toast.IsHtml)
                 {
-                    <div class="product-price mb-3">
-                        <span class="h4 text-danger me-2">@(1200000 + Id * 100000)đ</span>
-                        <span class="text-decoration-line-through text-muted">@(1500000 + Id * 100000)đ</span>
-                        <span class="badge bg-danger ms-2">Giảm 20%</span>
-                    </div>
+                    @((MarkupString)toast.Message)
                 }
                 else
                 {
-                    <div class="product-price mb-3">
-                        <span class="h4">@(1200000 + Id * 100000)đ</span>
-                    </div>
+                    @toast.Message
                 }
+            </div>
+        </div>
+    }
+</div>
 
-                <div class="product-description mb-4">
-                    <p>Gọng kính thời trang cao cấp, thiết kế hiện đại, phù hợp với nhiều khuôn mặt. Chất liệu nhẹ, bền và đẹp, mang lại cảm giác thoải mái khi sử dụng.</p>
-                    <ul>
-                        <li>Chất liệu: Acetate cao cấp</li>
-                        <li>Màu sắc: Đen / Nâu / Xanh</li>
-                        <li>Kích thước: @(50 + (Id % 4))□@(18 + (Id % 3))-@(140 + (Id % 5))</li>
-                        <li>Xuất xứ: Ý</li>
-                        <li>Bảo hành: 12 tháng</li>
-                    </ul>
-                </div>
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (product == null)
+{
+    <div class="alert alert-danger">
+        Không tìm thấy sản phẩm
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+                <li class="breadcrumb-item"><a href="/collections">Bộ sưu tập</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@product.ProductName</li>
+            </ol>
+        </nav>
 
-                <div class="product-variations mb-4">
-                    <h6 class="mb-2">Màu sắc:</h6>
-                    <div class="btn-group mb-3" role="group">
-                        <input type="radio" class="btn-check" name="color" id="color1" checked>
-                        <label class="btn btn-outline-dark" for="color1">Đen</label>
-
-                        <input type="radio" class="btn-check" name="color" id="color2">
-                        <label class="btn btn-outline-dark" for="color2">Nâu</label>
-
-                        <input type="radio" class="btn-check" name="color" id="color3">
-                        <label class="btn btn-outline-dark" for="color3">Xanh</label>
+        <div class="row">
+            <!-- Product Images -->
+            <div class="col-md-6 mb-4">
+                <div class="product-images">
+                    <div class="main-image mb-3">
+                        <img src="@(string.IsNullOrEmpty(product.ImageUrl) ? "https://placehold.co/600x400" : product.ImageUrl)" class="img-fluid rounded" alt="@product.ProductName">
+                    </div>
+                    <div class="row thumbnail-images">
+                        @foreach (var variant in product.Variants)
+                        {
+                            <div class="col-3">
+                                <img src="@(string.IsNullOrEmpty(variant.ImageUrl) ? "https://placehold.co/600x400" : variant.ImageUrl)" 
+                                     class="img-fluid rounded @(selectedVariant?.ProductVariantId == variant.ProductVariantId ? "border border-primary" : "")" 
+                                     alt="@variant.VariantName"
+                                     @onclick="() => SelectVariant(variant)" />
+                            </div>
+                        }
                     </div>
                 </div>
+            </div>
 
-                <div class="product-actions d-flex mb-4">
-                    <div class="input-group me-3" style="width: 130px;">
-                        <button class="btn btn-outline-secondary" type="button">-</button>
-                        <input type="text" class="form-control text-center" value="1">
-                        <button class="btn btn-outline-secondary" type="button">+</button>
-                    </div>
-                    <button class="btn btn-primary flex-grow-1">
-                        <i class="bi bi-cart-plus me-1"></i> Thêm vào giỏ hàng
-                    </button>
-                </div>
+            <!-- Product Details -->
+            <div class="col-md-6">
+                <div class="product-details">
+                    <h2 class="mb-2">@product.ProductName</h2>
+                    <p class="text-muted mb-2">SKU: @product.ProductId.Substring(0, 8) | Thương hiệu: @product.CategoryName</p>
 
-                <div class="product-additional-actions d-flex mb-4">
-                    <button class="btn btn-outline-secondary me-2">
-                        <i class="bi bi-heart me-1"></i> Yêu thích
-                    </button>
-                    <button class="btn btn-outline-secondary">
-                        <i class="bi bi-share me-1"></i> Chia sẻ
-                    </button>
-                </div>
-
-                <div class="shipping-info p-3 bg-light rounded mb-4">
-                    <div class="d-flex mb-2">
-                        <i class="bi bi-truck me-2"></i>
-                        <div>
-                            <strong>Miễn phí vận chuyển</strong>
-                            <p class="mb-0 small">Cho đơn hàng từ 1.000.000đ</p>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="text-warning me-2">
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                if (i < 4)
+                                {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-star-half"></i>
+                                }
+                            }
                         </div>
+                        <span class="text-muted">10 đánh giá</span>
                     </div>
-                    <div class="d-flex mb-2">
-                        <i class="bi bi-arrow-return-left me-2"></i>
-                        <div>
-                            <strong>Đổi trả miễn phí</strong>
-                            <p class="mb-0 small">Trong vòng 30 ngày</p>
+
+                    <div class="product-price mb-3">
+                        <span class="h4">@(selectedVariant != null ? selectedVariant.Price : product.PriceOfBaseVariant)đ</span>
+                    </div>
+
+                    <div class="product-description mb-4">
+                        <p>@product.Description</p>
+                    </div>
+
+                    @if (product.Variants.Count > 0)
+                    {
+                        <div class="product-variations mb-4">
+                            <h6 class="mb-2">Biến thể sản phẩm:</h6>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tùy chọn</th>
+                                            <th>Màu sắc</th>
+                                            <th>Mã sản phẩm</th>
+                                            <th>Giá</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var variant in product.Variants)
+                                        {
+                                            bool isSelected = selectedVariant?.ProductVariantId == variant.ProductVariantId;
+                                            <tr class="@(isSelected ? "table-primary" : "")" 
+                                                style="cursor: pointer"
+                                                @onclick="() => SelectVariant(variant)">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="form-check me-2">
+                                                            <input class="form-check-input" type="radio" 
+                                                                   name="variantOption" 
+                                                                   id="variant_@variant.ProductVariantId" 
+                                                                   checked="@isSelected">
+                                                            <label class="form-check-label" for="variant_@variant.ProductVariantId">
+                                                                @variant.VariantName
+                                                            </label>
+                                                        </div>
+                                                        @if (variant.IsBaseVariant)
+                                                        {
+                                                            <span class="badge bg-info ms-2">Mặc định</span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(variant.ColorCode))
+                                                    {
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="color-swatch me-2" 
+                                                                 style="width: 20px; height: 20px; border-radius: 50%; background-color: @variant.ColorCode">
+                                                            </div>
+                                                            <span>@variant.ColorCode</span>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>-</span>
+                                                    }
+                                                </td>
+                                                <td>@(!string.IsNullOrEmpty(variant.ProductCode) ? variant.ProductCode : (string.IsNullOrEmpty(variant.ProductId) ? "-" : variant.ProductId.Substring(0, 8)))</td>
+                                                <td class="fw-bold">@variant.Price.ToString("N0")đ</td>
+                                                <td>
+                                                    <span class="badge @(variant.IsAvailable ? "bg-success" : "bg-danger")">
+                                                        @(variant.IsAvailable ? "Còn hàng" : "Hết hàng")
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            @if (selectedVariant != null)
+                            {
+                                <div class="mt-3 p-3 bg-light rounded">
+                                    <h6>Chi tiết biến thể đã chọn:</h6>
+                                    @if (!string.IsNullOrEmpty(selectedVariant.ImageUrl))
+                                    {
+                                        <div class="text-center mb-3">
+                                            <img src="@selectedVariant.ImageUrl" class="img-thumbnail" 
+                                                 style="max-height: 100px;" alt="@selectedVariant.VariantName">
+                                        </div>
+                                    }
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-2"><strong>Tên:</strong> @selectedVariant.VariantName</p>
+                                            <p class="mb-2"><strong>Mã sản phẩm:</strong> @(!string.IsNullOrEmpty(selectedVariant.ProductCode) ? selectedVariant.ProductCode : "-")</p>
+                                            <p class="mb-2"><strong>Giá:</strong> <span class="text-danger fw-bold">@selectedVariant.Price.ToString("N0")đ</span></p>
+                                            <p class="mb-2"><strong>Trạng thái:</strong> 
+                                                <span class="badge @(selectedVariant.IsAvailable ? "bg-success" : "bg-danger")">
+                                                    @(selectedVariant.IsAvailable ? "Còn hàng" : "Hết hàng")
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            @if (!string.IsNullOrEmpty(selectedVariant.ColorCode))
+                                            {
+                                                <p class="mb-2">
+                                                    <strong>Màu sắc:</strong>
+                                                    <div class="d-inline-flex align-items-center ms-2">
+                                                        <div class="color-swatch me-2" 
+                                                             style="width: 20px; height: 20px; border-radius: 50%; background-color: @selectedVariant.ColorCode">
+                                                        </div>
+                                                        <span>@selectedVariant.ColorCode</span>
+                                                    </div>
+                                                </p>
+                                            }
+                                            @if (!string.IsNullOrEmpty(selectedVariant.Description))
+                                            {
+                                                <p class="mb-2"><strong>Mô tả:</strong> @selectedVariant.Description</p>
+                                            }
+                                            @if (selectedVariant.IsBaseVariant)
+                                            {
+                                                <p class="mb-2"><strong>Loại:</strong> <span class="badge bg-info">Biến thể mặc định</span></p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </div>
+                    }
+
+                    <div class="product-actions d-flex mb-4">
+                        <div class="input-group me-3" style="width: 130px;">
+                            <button class="btn btn-outline-secondary" type="button" @onclick="DecreaseQuantity">-</button>
+                            <input type="text" class="form-control text-center" value="@quantity" @onchange="OnQuantityChanged">
+                            <button class="btn btn-outline-secondary" type="button" @onclick="IncreaseQuantity">+</button>
+                        </div>
+                        <button class="btn btn-primary flex-grow-1" @onclick="AddToCart">
+                            <i class="bi bi-cart-plus me-1"></i> Thêm vào giỏ hàng
+                        </button>
                     </div>
-                    <div class="d-flex">
-                        <i class="bi bi-shield-check me-2"></i>
-                        <div>
-                            <strong>Bảo hành chính hãng</strong>
-                            <p class="mb-0 small">12 tháng theo quy định của nhà sản xuất</p>
+
+                    <div class="product-additional-actions d-flex mb-4">
+                        <button class="btn btn-outline-secondary me-2">
+                            <i class="bi bi-heart me-1"></i> Yêu thích
+                        </button>
+                        <button class="btn btn-outline-secondary">
+                            <i class="bi bi-share me-1"></i> Chia sẻ
+                        </button>
+                    </div>
+
+                    <div class="shipping-info p-3 bg-light rounded mb-4">
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-truck me-2"></i>
+                            <div>
+                                <strong>Miễn phí vận chuyển</strong>
+                                <p class="mb-0 small">Cho đơn hàng từ 1.000.000đ</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-arrow-return-left me-2"></i>
+                            <div>
+                                <strong>Đổi trả miễn phí</strong>
+                                <p class="mb-0 small">Trong vòng 30 ngày</p>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <i class="bi bi-shield-check me-2"></i>
+                            <div>
+                                <strong>Bảo hành chính hãng</strong>
+                                <p class="mb-0 small">12 tháng theo quy định của nhà sản xuất</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Product Tabs -->
-    <div class="row mt-5">
-        <div class="col-12">
-            <ul class="nav nav-tabs" id="productTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Mô tả</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button" role="tab" aria-controls="specs" aria-selected="false">Thông số kỹ thuật</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="false">Đánh giá (@(10 + Id))</button>
-                </li>
-            </ul>
-            <div class="tab-content p-4 border border-top-0 rounded-bottom" id="productTabContent">
-                <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
-                    <h4>Gọng kính model @Id</h4>
-                    <p>Gọng kính model @Id là sự kết hợp hoàn hảo giữa thiết kế hiện đại và chất liệu cao cấp. Với kiểu dáng thanh lịch và đường nét tinh tế, sản phẩm mang đến vẻ đẹp sang trọng cho người sử dụng.</p>
-                    <p>Được chế tác từ chất liệu Acetate cao cấp, gọng kính có độ bền cao và trọng lượng nhẹ, mang lại cảm giác thoải mái khi đeo trong thời gian dài. Thiết kế ergonomic giúp gọng kính ôm sát khuôn mặt, phù hợp với nhiều dáng mặt khác nhau.</p>
-                    <p>Sản phẩm có nhiều màu sắc để lựa chọn, từ những gam màu truyền thống như đen, nâu đến những màu sắc hiện đại như xanh dương, giúp bạn dễ dàng phối hợp với trang phục và phong cách cá nhân.</p>
-                </div>
-                <div class="tab-pane fade" id="specs" role="tabpanel" aria-labelledby="specs-tab">
-                    <h4>Thông số kỹ thuật</h4>
-                    <table class="table table-bordered">
-                        <tbody>
-                            <tr>
-                                <th style="width: 30%">Thương hiệu</th>
-                                <td>@GetBrand()</td>
-                            </tr>
-                            <tr>
-                                <th>Mã sản phẩm</th>
-                                <td>KM@(1000 + Id)</td>
-                            </tr>
-                            <tr>
-                                <th>Chất liệu gọng</th>
-                                <td>Acetate cao cấp</td>
-                            </tr>
-                            <tr>
-                                <th>Màu sắc</th>
-                                <td>Đen / Nâu / Xanh</td>
-                            </tr>
-                            <tr>
-                                <th>Kích thước</th>
-                                <td>@(50 + (Id % 4))□@(18 + (Id % 3))-@(140 + (Id % 5))</td>
-                            </tr>
-                            <tr>
-                                <th>Xuất xứ</th>
-                                <td>Ý</td>
-                            </tr>
-                            <tr>
-                                <th>Bảo hành</th>
-                                <td>12 tháng</td>
-                            </tr>
-                            <tr>
-                                <th>Phụ kiện kèm theo</th>
-                                <td>Hộp đựng, khăn lau, thẻ bảo hành</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4>Đánh giá từ khách hàng</h4>
-                        <button class="btn btn-primary">Viết đánh giá</button>
+        <!-- Product Tabs -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="productTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Mô tả</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button" role="tab" aria-controls="specs" aria-selected="false">Thông số kỹ thuật</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button" role="tab" aria-controls="reviews" aria-selected="false">Đánh giá (10)</button>
+                    </li>
+                </ul>
+                <div class="tab-content p-4 border border-top-0 rounded-bottom" id="productTabContent">
+                    <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
+                        <h4>@product.ProductName</h4>
+                        <p>@product.Description</p>
                     </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="text-center mb-4">
-                                <h2 class="mb-0">4.5/5</h2>
-                                <div class="text-warning mb-2">
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-fill"></i>
-                                    <i class="bi bi-star-half"></i>
-                                </div>
-                                <p class="text-muted">@(10 + Id) đánh giá</p>
-                            </div>
-                            
-                            <div class="ratings-breakdown">
-                                <div class="d-flex align-items-center mb-1">
-                                    <div class="text-nowrap me-2">5 <i class="bi bi-star-fill"></i></div>
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-success" style="width: 75%"></div>
-                                    </div>
-                                    <div class="ms-2">75%</div>
-                                </div>
-                                <div class="d-flex align-items-center mb-1">
-                                    <div class="text-nowrap me-2">4 <i class="bi bi-star-fill"></i></div>
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-success" style="width: 20%"></div>
-                                    </div>
-                                    <div class="ms-2">20%</div>
-                                </div>
-                                <div class="d-flex align-items-center mb-1">
-                                    <div class="text-nowrap me-2">3 <i class="bi bi-star-fill"></i></div>
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-warning" style="width: 5%"></div>
-                                    </div>
-                                    <div class="ms-2">5%</div>
-                                </div>
-                                <div class="d-flex align-items-center mb-1">
-                                    <div class="text-nowrap me-2">2 <i class="bi bi-star-fill"></i></div>
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-danger" style="width: 0%"></div>
-                                    </div>
-                                    <div class="ms-2">0%</div>
-                                </div>
-                                <div class="d-flex align-items-center mb-1">
-                                    <div class="text-nowrap me-2">1 <i class="bi bi-star-fill"></i></div>
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-danger" style="width: 0%"></div>
-                                    </div>
-                                    <div class="ms-2">0%</div>
-                                </div>
-                            </div>
+                    <div class="tab-pane fade" id="specs" role="tabpanel" aria-labelledby="specs-tab">
+                        <h4>Thông số kỹ thuật</h4>
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%">Thương hiệu</th>
+                                    <td>@product.CategoryName</td>
+                                </tr>
+                                <tr>
+                                    <th>Mã sản phẩm</th>
+                                    <td>@product.ProductId.Substring(0, 8)</td>
+                                </tr>
+                                <tr>
+                                    <th>Trạng thái</th>
+                                    <td>@product.Status</td>
+                                </tr>
+                                <tr>
+                                    <th>Màu sắc</th>
+                                    <td>@string.Join(" / ", product.Variants.Select(v => v.VariantName))</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade" id="reviews" role="tabpanel" aria-labelledby="reviews-tab">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4>Đánh giá từ khách hàng</h4>
+                            <button class="btn btn-primary">Viết đánh giá</button>
                         </div>
                         
-                        <div class="col-md-8">
-                            <!-- Review Item -->
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <div class="d-flex align-items-center">
-                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
-                                            <div>
-                                                <h6 class="mb-0">Nguyễn Văn A</h6>
-                                                <div class="text-warning">
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <small class="text-muted">12/05/2023</small>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="text-center mb-4">
+                                    <h2 class="mb-0">4.5/5</h2>
+                                    <div class="text-warning mb-2">
+                                        <i class="bi bi-star-fill"></i>
+                                        <i class="bi bi-star-fill"></i>
+                                        <i class="bi bi-star-fill"></i>
+                                        <i class="bi bi-star-fill"></i>
+                                        <i class="bi bi-star-half"></i>
                                     </div>
-                                    <h6>Sản phẩm tuyệt vời!</h6>
-                                    <p>Tôi rất hài lòng với sản phẩm này. Chất lượng tốt, thiết kế đẹp và rất phù hợp với khuôn mặt của tôi. Đặc biệt, gọng kính rất nhẹ, đeo cả ngày không bị đau tai.</p>
+                                    <p class="text-muted">10 đánh giá</p>
+                                </div>
+                                
+                                <div class="ratings-breakdown">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <div class="text-nowrap me-2">5 <i class="bi bi-star-fill"></i></div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-success" style="width: 75%"></div>
+                                        </div>
+                                        <div class="ms-2">75%</div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <div class="text-nowrap me-2">4 <i class="bi bi-star-fill"></i></div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-success" style="width: 20%"></div>
+                                        </div>
+                                        <div class="ms-2">20%</div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <div class="text-nowrap me-2">3 <i class="bi bi-star-fill"></i></div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-warning" style="width: 5%"></div>
+                                        </div>
+                                        <div class="ms-2">5%</div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <div class="text-nowrap me-2">2 <i class="bi bi-star-fill"></i></div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                        </div>
+                                        <div class="ms-2">0%</div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <div class="text-nowrap me-2">1 <i class="bi bi-star-fill"></i></div>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-danger" style="width: 0%"></div>
+                                        </div>
+                                        <div class="ms-2">0%</div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <!-- Review Item -->
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <div class="d-flex align-items-center">
-                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
-                                            <div>
-                                                <h6 class="mb-0">Trần Thị B</h6>
-                                                <div class="text-warning">
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star"></i>
+                            <div class="col-md-8">
+                                <!-- Review Item -->
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
+                                                <div>
+                                                    <h6 class="mb-0">Nguyễn Văn A</h6>
+                                                    <div class="text-warning">
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <small class="text-muted">12/05/2023</small>
                                         </div>
-                                        <small class="text-muted">05/04/2023</small>
+                                        <h6>Sản phẩm tuyệt vời!</h6>
+                                        <p>Tôi rất hài lòng với sản phẩm này. Chất lượng tốt, thiết kế đẹp và rất phù hợp với khuôn mặt của tôi. Đặc biệt, gọng kính rất nhẹ, đeo cả ngày không bị đau tai.</p>
                                     </div>
-                                    <h6>Sản phẩm chất lượng</h6>
-                                    <p>Gọng kính rất đẹp và chắc chắn. Tôi đã đeo được hơn 1 tháng và rất hài lòng. Dịch vụ giao hàng nhanh, đóng gói cẩn thận.</p>
                                 </div>
-                            </div>
-                            
-                            <!-- Review Item -->
-                            <div class="card mb-3">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <div class="d-flex align-items-center">
-                                            <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
-                                            <div>
-                                                <h6 class="mb-0">Phạm Văn C</h6>
-                                                <div class="text-warning">
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star-fill"></i>
-                                                    <i class="bi bi-star"></i>
-                                                    <i class="bi bi-star"></i>
+                                
+                                <!-- Review Item -->
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <div class="d-flex align-items-center">
+                                                <img src="https://placehold.co/40" class="rounded-circle me-2" alt="Avatar">
+                                                <div>
+                                                    <h6 class="mb-0">Trần Thị B</h6>
+                                                    <div class="text-warning">
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star-fill"></i>
+                                                        <i class="bi bi-star"></i>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <small class="text-muted">05/04/2023</small>
                                         </div>
-                                        <small class="text-muted">20/03/2023</small>
+                                        <h6>Sản phẩm chất lượng</h6>
+                                        <p>Gọng kính rất đẹp và chắc chắn. Tôi đã đeo được hơn 1 tháng và rất hài lòng. Dịch vụ giao hàng nhanh, đóng gói cẩn thận.</p>
                                     </div>
-                                    <h6>Sản phẩm tạm ổn</h6>
-                                    <p>Gọng kính đẹp nhưng hơi cứng, cần thời gian để làm quen. Nhân viên tư vấn nhiệt tình.</p>
                                 </div>
                             </div>
-                            
-                            <nav aria-label="Review pagination" class="mt-4">
-                                <ul class="pagination justify-content-center">
-                                    <li class="page-item disabled">
-                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Trước</a>
-                                    </li>
-                                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                    <li class="page-item">
-                                        <a class="page-link" href="#">Sau</a>
-                                    </li>
-                                </ul>
-                            </nav>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Related Products -->
-    <div class="row mt-5">
-        <div class="col-12">
-            <h3 class="mb-4">Sản phẩm liên quan</h3>
-            <div class="row">
-                @for (int i = 1; i <= 4; i++)
-                {
-                    int productId = (Id + i) % 20 + 1;
-                    <div class="col-md-3 mb-4">
-                        <div class="card h-100">
-                            <img src="https://placehold.co/300x200" class="card-img-top" alt="Kính mẫu @productId">
-                            <div class="card-body">
-                                <h5 class="card-title">Gọng kính model @productId</h5>
-                                <p class="card-text">@(1200000 + productId * 100000)đ</p>
-                                <a href="/product/@productId" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
-                                <button class="btn btn-sm btn-primary">
-                                    <i class="bi bi-cart-plus"></i>
-                                </button>
+        <!-- Related Products -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="mb-4">Sản phẩm liên quan</h3>
+                
+                <div class="position-relative">
+                    @if (relatedProducts == null)
+                    {
+                        <div class="text-center my-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
                             </div>
                         </div>
-                    </div>
-                }
+                    }
+                    else if (!relatedProducts.Any())
+                    {
+                        <div class="alert alert-info">Không có sản phẩm liên quan</div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-nowrap overflow-auto pb-3">
+                            @foreach (var item in relatedProducts)
+                            {
+                                bool isOutOfStock = item.Status == "OutOfStock";
+                                <div class="card me-3" style="min-width: 250px; max-width: 250px;">
+                                    <div class="position-relative">
+                                        <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/300x200" : item.ImageUrl)" 
+                                             class="card-img-top" alt="@item.ProductName" style="height: 180px; object-fit: cover;">
+                                        @if (item.Status == "Sale")
+                                        {
+                                            <span class="badge bg-danger position-absolute top-0 end-0 m-2">Sale</span>
+                                        }
+                                        @if (item.Status == "New")
+                                        {
+                                            <span class="badge bg-success position-absolute top-0 start-0 m-2">Mới</span>
+                                        }
+                                        @if (isOutOfStock)
+                                        {
+                                            <span class="badge bg-secondary position-absolute top-0 end-0 m-2">Hết hàng</span>
+                                        }
+                                    </div>
+                                    <div class="card-body">
+                                        <h5 class="card-title text-truncate" title="@item.ProductName">@item.ProductName</h5>
+                                        <p class="text-muted small">@item.CategoryName</p>
+                                        <p class="card-text">@item.PriceOfBaseVariant.ToString("N0")đ</p>
+                                        <div class="d-flex">
+                                            <a href="/product/@item.ProductId" class="btn btn-sm btn-outline-primary flex-grow-1 me-2">Xem chi tiết</a>
+                                            <button class="btn btn-sm btn-primary @(isOutOfStock ? "disabled" : "")" 
+                                                    disabled="@isOutOfStock"
+                                                    @onclick="async () => await AddRelatedProductToCart(item)">
+                                                <i class="bi bi-cart-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
 
 @code {
     [Parameter]
-    public int Id { get; set; }
+    public string Id { get; set; }
 
-    private string GetBrand()
+    private Product product;
+    private ProductVariant selectedVariant;
+    private bool isLoading = true;
+    private int quantity = 1;
+    private List<ProductResponse> relatedProducts = null;
+    private List<ToastNotification> toastNotifications = new List<ToastNotification>();
+
+    protected override async Task OnInitializedAsync()
     {
-        string[] brands = { "Ray-Ban", "Gucci", "Oakley", "Prada" };
-        return brands[Id % brands.Length];
+        await LoadProductData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProductData();
+    }
+
+    private async Task LoadProductData()
+    {
+        try
+        {
+            isLoading = true;
+            product = await GetProductById(Id);
+            
+            if (product != null && product.Variants.Count > 0)
+            {
+                // Select base variant by default
+                selectedVariant = product.Variants.FirstOrDefault(v => v.IsBaseVariant) 
+                                 ?? product.Variants.First();
+                
+                // Load related products
+                await LoadRelatedProducts();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading product: {ex.Message}");
+            // Consider adding a better error handling mechanism
+        }
+        finally
+        {
+            isLoading = false;
+        }
+        
+    }
+
+    private async Task LoadRelatedProducts()
+    {
+        try
+        {
+            
+            // Get products from the same category, limit to 10
+            var response = await Http.GetAsync($"https://localhost:7222/api/products?pageSize=10&filterCategory={product.CategoryId}&excludeProductId={product.ProductId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<PagedList<ProductResponse>>();
+                relatedProducts = result?.Items ?? new List<ProductResponse>();
+            }
+            else
+            {
+                relatedProducts = new List<ProductResponse>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading related products: {ex.Message}");
+            relatedProducts = new List<ProductResponse>();
+        }
+    }
+
+    private async Task<Product> GetProductById(string id)
+    {
+        using var httpClient = new HttpClient();
+        var response = await httpClient.GetAsync($"https://localhost:7222/api/products/{id}");
+        
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<Product>();
+        }
+        
+        return null;
+    }
+
+    private void SelectVariant(ProductVariant variant)
+    {
+        selectedVariant = variant;
+    }
+
+    private void IncreaseQuantity()
+    {
+        quantity++;
+    }
+
+    private void DecreaseQuantity()
+    {
+        if (quantity > 1)
+            quantity--;
+    }
+
+    private void OnQuantityChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int value) && value > 0)
+        {
+            quantity = value;
+        }
+        else
+        {
+            quantity = 1;
+        }
+    }
+
+    private async Task AddToCart()
+    {
+        if (selectedVariant == null)
+        {
+            return; // Không có variant được chọn
+        }
+
+        try
+        {
+            
+            var orderRequest = new OrderRequest
+            {
+                ProductVariantId = selectedVariant.ProductVariantId,
+                Quantity = quantity
+            };
+
+            var response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Hiển thị thông báo thành công bằng toast với tùy chọn xem giỏ hàng
+                ShowCartToast(
+                    $"Đã thêm {quantity} sản phẩm {product.ProductName} ({selectedVariant.VariantName}) vào giỏ hàng"
+                );
+            }
+            else
+            {
+                // Hiển thị thông báo lỗi bằng toast
+                ShowToast("Thêm vào giỏ hàng thất bại", 
+                          "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.", 
+                          ToastType.Error);
+                Console.WriteLine($"Error adding to cart: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Xử lý lỗi bằng toast
+            ShowToast("Lỗi", 
+                      "Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng", 
+                      ToastType.Error);
+            Console.WriteLine($"Exception adding to cart: {ex.Message}");
+        }
+    }
+
+    private async Task AddRelatedProductToCart(ProductResponse product)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            
+            // Get the product details to obtain the base variant ID
+            var detailResponse = await httpClient.GetAsync($"https://localhost:7222/api/products/{product.ProductId}");
+            
+            if (!detailResponse.IsSuccessStatusCode)
+            {
+                ShowToast("Thêm vào giỏ hàng thất bại", 
+                          "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.", 
+                          ToastType.Error);
+                return;
+            }
+            
+            var productDetail = await detailResponse.Content.ReadFromJsonAsync<Product>();
+            
+            if (productDetail == null || !productDetail.Variants.Any())
+            {
+                ShowToast("Thêm vào giỏ hàng thất bại", 
+                          "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.", 
+                          ToastType.Error);
+                return;
+            }
+            
+            // Get base variant or first available
+            var baseVariant = productDetail.Variants.FirstOrDefault(v => v.IsBaseVariant) 
+                              ?? productDetail.Variants.First();
+            
+            var orderRequest = new OrderRequest
+            {
+                ProductVariantId = baseVariant.ProductVariantId,
+                Quantity = 1 // Default to 1 for quick add
+            };
+
+            var response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Hiển thị thông báo thành công bằng toast với tùy chọn xem giỏ hàng
+                ShowCartToast(
+                    $"Đã thêm 1 sản phẩm {product.ProductName} vào giỏ hàng"
+                );
+            }
+            else
+            {
+                // Hiển thị thông báo lỗi bằng toast
+                ShowToast("Thêm vào giỏ hàng thất bại", 
+                          "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.", 
+                          ToastType.Error);
+                Console.WriteLine($"Error adding related product to cart: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Xử lý lỗi bằng toast
+            ShowToast("Lỗi", 
+                      "Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng", 
+                      ToastType.Error);
+            Console.WriteLine($"Exception adding related product to cart: {ex.Message}");
+        }
+    }
+
+    private void ShowCartToast(string message)
+    {
+        // Tạo HTML content với button để chuyển đến trang giỏ hàng
+        var cartToastId = Guid.NewGuid().ToString();
+        var toast = new ToastNotification
+        {
+            Id = cartToastId,
+            Title = "Thêm vào giỏ hàng thành công",
+            Message = $"{message} <div class='mt-2'><a href='/cart' class='btn btn-primary btn-sm me-2'>Xem giỏ hàng</a><button class='btn btn-outline-secondary btn-sm' onclick=\"document.getElementById('{cartToastId}').remove()\">Tiếp tục mua sắm</button></div>",
+            Type = ToastType.Success,
+            Timestamp = DateTime.Now,
+            IsHtml = true
+        };
+        
+        toastNotifications.Add(toast);
+        
+        // Trigger a timer to auto-remove the toast after a longer period (8 seconds)
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(8000);
+            await InvokeAsync(() =>
+            {
+                if (toastNotifications.Contains(toast))
+                {
+                    toastNotifications.Remove(toast);
+                    StateHasChanged();
+                }
+            });
+        });
+        
+        StateHasChanged();
+    }
+
+    private void ShowToast(string title, string message, ToastType type)
+    {
+        var toast = new ToastNotification
+        {
+            Id = Guid.NewGuid().ToString(),
+            Title = title,
+            Message = message,
+            Type = type,
+            Timestamp = DateTime.Now
+        };
+        
+        toastNotifications.Add(toast);
+        
+        // Trigger a timer to auto-remove the toast after 5 seconds
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(5000);
+            await InvokeAsync(() =>
+            {
+                if (toastNotifications.Contains(toast))
+                {
+                    toastNotifications.Remove(toast);
+                    StateHasChanged();
+                }
+            });
+        });
+        
+        StateHasChanged();
+    }
+    
+    private void RemoveToast(ToastNotification toast)
+    {
+        toastNotifications.Remove(toast);
+        StateHasChanged();
+    }
+    
+    // Enums and models
+    private enum ToastType
+    {
+        Success,
+        Error,
+        Warning,
+        Info
+    }
+    
+    private class ToastNotification
+    {
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public ToastType Type { get; set; }
+        public DateTime Timestamp { get; set; }
+        public bool IsHtml { get; set; }
+        
+        public string HeaderClass => Type switch
+        {
+            ToastType.Success => "bg-success text-white",
+            ToastType.Error => "bg-danger text-white",
+            ToastType.Warning => "bg-warning text-dark",
+            ToastType.Info => "bg-info text-dark",
+            _ => "bg-primary text-white"
+        };
+        
+        public string Icon => Type switch
+        {
+            ToastType.Success => "bi-check-circle-fill",
+            ToastType.Error => "bi-exclamation-triangle-fill",
+            ToastType.Warning => "bi-exclamation-circle-fill",
+            ToastType.Info => "bi-info-circle-fill",
+            _ => "bi-bell-fill"
+        };
+    }
+
+    // Models based on the API response
+    public class Product
+    {
+        public string ProductId { get; set; }
+        public string ProductName { get; set; }
+        public decimal PriceOfBaseVariant { get; set; }
+        public string ImageUrl { get; set; }
+        public string Description { get; set; }
+        public string Status { get; set; }
+        public string CategoryName { get; set; }
+        public string CategoryId { get; set; }
+        public List<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
+    }
+
+    public class ProductVariant
+    {
+        public string ProductVariantId { get; set; }
+        public string ProductId { get; set; }
+        public string VariantName { get; set; }
+        public string ColorCode { get; set; }
+        public string ProductCode { get; set; } = string.Empty;
+        public string Description { get; set; }
+        public decimal Price { get; set; }
+        public string ImageUrl { get; set; }
+        public bool IsBaseVariant { get; set; }
+        public bool IsAvailable { get; set; } = true; // Default to true if not specified
+    }
+
+    // Added from Collections.razor
+    private class ProductResponse
+    {
+        public string ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal PriceOfBaseVariant { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? Description { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+    }
+
+    private class PagedList<T>
+    {
+        public List<T> Items { get; set; } = new List<T>();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasNextPage => Page * PageSize < TotalCount;
+        public bool HasPreviousPage => Page > 1;
+    }
+
+    private class OrderRequest
+    {
+        public string ProductVariantId { get; set; }
+        public int Quantity { get; set; }
     }
 } 

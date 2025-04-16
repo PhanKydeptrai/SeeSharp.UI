@@ -1,4 +1,5 @@
 ﻿@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Web
 @inject ILocalStorageService localStorage
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -9,8 +10,8 @@
     </div>
     <div class="col-md-6">
         <div class="input-group">
-            <input type="text" class="form-control" placeholder="Tìm kiếm sản phẩm...">
-            <button class="btn btn-primary" type="button">
+            <input type="text" class="form-control" placeholder="Tìm kiếm sản phẩm..." @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleKeyPress">
+            <button class="btn btn-primary" type="button" @onclick="Search">
                 <i class="bi bi-search"></i>
             </button>
         </div>
@@ -80,6 +81,7 @@
 {
     private bool isLoggedIn;
     private string? accessToken;
+    private string searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,6 +102,21 @@
         await AuthenticationStateProvider.GetAuthenticationStateAsync();
         // Redirect
         NavigationManager.NavigateTo("/");
+    }
 
+    private void Search()
+    {
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            NavigationManager.NavigateTo($"/search?q={Uri.EscapeDataString(searchTerm)}");
+        }
+    }
+
+    private void HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Search();
+        }
     }
 }

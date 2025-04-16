@@ -1,7 +1,223 @@
 @page "/collections"
 @page "/collections/{category}"
-
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
 <PageTitle>Bộ sưu tập gọng kính</PageTitle>
+
+<style>
+    .form-check {
+        margin-left: 0.25rem;
+        padding-left: 1.5rem;
+    }
+    
+    .form-check-input[type=radio] {
+        margin-top: 0.3rem;
+    }
+    
+    .filter-section {
+        margin-bottom: 1rem;
+    }
+    
+    .filter-heading {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(2px);
+    }
+    
+    .loading-content {
+        background-color: white;
+        padding: 20px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    
+    .loading-spinner {
+        width: 3rem;
+        height: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Card hover effect */
+    .product-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Out of Stock Styling */
+    .product-card.out-of-stock {
+        opacity: 0.7;
+    }
+    
+    .out-of-stock-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2;
+    }
+    
+    .out-of-stock-message {
+        background-color: rgba(108, 117, 125, 0.85);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 4px;
+        font-weight: bold;
+        transform: rotate(-15deg);
+        font-size: 1.2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Skeleton Loading */
+    .skeleton {
+        position: relative;
+        overflow: hidden;
+        background-color: #f0f0f0;
+    }
+    
+    .skeleton::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+    
+    .skeleton-image {
+        height: 200px;
+        border-radius: 4px 4px 0 0;
+    }
+    
+    .skeleton-text {
+        height: 16px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+    }
+    
+    .skeleton-text.title {
+        height: 22px;
+        width: 80%;
+    }
+    
+    .skeleton-text.small {
+        width: 60%;
+        height: 14px;
+    }
+    
+    .skeleton-text.price {
+        width: 40%;
+    }
+    
+    .skeleton-button {
+        height: 38px;
+        border-radius: 4px;
+        margin-top: 12px;
+    }
+    
+    /* Toast Notification */
+    .toast-container {
+        z-index: 1080;
+    }
+    
+    .toast {
+        min-width: 300px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        animation: toast-in-right 0.3s ease-in-out;
+    }
+    
+    @@keyframes toast-in-right {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .toast-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 1rem;
+    }
+    
+    .toast .btn-close {
+        background-color: transparent;
+        opacity: 0.8;
+    }
+    
+    .toast .btn-close:hover {
+        opacity: 1;
+    }
+</style>
+
+<!-- Toast Notification Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+    @foreach (var toast in toastNotifications)
+    {
+        <div class="toast show mb-2" role="alert" aria-live="assertive" aria-atomic="true" id="@toast.Id">
+            <div class="toast-header @toast.HeaderClass">
+                <i class="bi @toast.Icon me-2"></i>
+                <strong class="me-auto">@toast.Title</strong>
+                <small>@toast.Timestamp.ToString("HH:mm:ss")</small>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="() => RemoveToast(toast)"></button>
+            </div>
+            <div class="toast-body">
+                @if (toast.IsHtml)
+                {
+                    @((MarkupString)toast.Message)
+                }
+                else
+                {
+                    @toast.Message
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (isPageLoading)
+{
+    <div class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner-border loading-spinner text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <div>Đang tải dữ liệu...</div>
+        </div>
+    </div>
+}
 
 <div class="container mt-4">
     <div class="row">
@@ -12,79 +228,70 @@
                     <h5 class="mb-0">Bộ lọc sản phẩm</h5>
                 </div>
                 <div class="card-body">
-                    <h6 class="border-bottom pb-2">Danh mục</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="men">
-                        <label class="form-check-label" for="men">
-                            Gọng kính nam
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="women">
-                        <label class="form-check-label" for="women">
-                            Gọng kính nữ
-                        </label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" value="" id="luxury">
-                        <label class="form-check-label" for="luxury">
-                            Thương hiệu cao cấp
-                        </label>
-                    </div>
-
-                    <h6 class="border-bottom pb-2 pt-3">Khoảng giá</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="price1">
-                        <label class="form-check-label" for="price1">
-                            Dưới 1.000.000đ
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="price2">
-                        <label class="form-check-label" for="price2">
-                            1.000.000đ - 2.000.000đ
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="price3">
-                        <label class="form-check-label" for="price3">
-                            2.000.000đ - 3.000.000đ
-                        </label>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" value="" id="price4">
-                        <label class="form-check-label" for="price4">
-                            Trên 3.000.000đ
-                        </label>
+                    <div class="filter-section">
+                        <h6 class="filter-heading border-bottom pb-2">Danh mục</h6>
+                        @if (categoryList == null)
+                        {
+                            <div class="text-center py-2">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="categoryRadio" value="" id="allcategories"
+                                       checked="@(string.IsNullOrEmpty(Category))" @onchange="@(e => SetCategory(null))">
+                                <label class="form-check-label" for="allcategories">
+                                    Tất cả danh mục
+                                </label>
+                            </div>
+                            
+                            @foreach (var category in categoryList)
+                            {
+                                var categoryCode = category.CategoryCode;
+                                var categoryId = "category_" + categoryCode;
+                                
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="categoryRadio" 
+                                           value="@categoryCode" id="@categoryId"
+                                           checked="@(Category == categoryCode)" 
+                                           @onchange="@(e => SetCategory(categoryCode))">
+                                    <label class="form-check-label" for="@categoryId">
+                                        @category.CategoryName
+                                    </label>
+                                </div>
+                            }
+                        }
                     </div>
 
-                    <h6 class="border-bottom pb-2 pt-3">Thương hiệu</h6>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="brand1">
-                        <label class="form-check-label" for="brand1">
-                            Ray-Ban
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="brand2">
-                        <label class="form-check-label" for="brand2">
-                            Gucci
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="brand3">
-                        <label class="form-check-label" for="brand3">
-                            Oakley
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="" id="brand4">
-                        <label class="form-check-label" for="brand4">
-                            Prada
-                        </label>
+                    <div class="filter-section">
+                        <h6 class="filter-heading border-bottom pb-2">Trạng thái</h6>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="statusRadio" value="InStock" id="instock"
+                                   checked="@(filterStatus == "InStock")" @onchange="@(e => SetStatus("InStock"))">
+                            <label class="form-check-label" for="instock">
+                                Còn hàng
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="statusRadio" value="OutOfStock" id="outofstock"
+                                   checked="@(filterStatus == "OutOfStock")" @onchange="@(e => SetStatus("OutOfStock"))">
+                            <label class="form-check-label" for="outofstock">
+                                Hết hàng
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="statusRadio" value="" id="allstatus"
+                                   checked="@(string.IsNullOrEmpty(filterStatus))" @onchange="@(e => SetStatus(null))">
+                            <label class="form-check-label" for="allstatus">
+                                Tất cả trạng thái
+                            </label>
+                        </div>
                     </div>
 
-                    <button class="btn btn-primary w-100 mt-3">Áp dụng</button>
+                    <button class="btn btn-primary w-100 mt-3" @onclick="ApplyFilters">Áp dụng</button>
                 </div>
             </div>
         </div>
@@ -95,23 +302,52 @@
             <nav aria-label="breadcrumb" class="mb-4">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Bộ sưu tập gọng kính</li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        @if (!string.IsNullOrEmpty(Category) && categoryList != null)
+                        {
+                            var category = categoryList.FirstOrDefault(c => c.CategoryCode == Category);
+                            @(category?.CategoryName ?? "Bộ sưu tập gọng kính")
+                        }
+                        else
+                        {
+                            @("Bộ sưu tập gọng kính")
+                        }
+                    </li>
                 </ol>
             </nav>
 
             <!-- Sort and View Options -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3 class="m-0">@(string.IsNullOrEmpty(@Category) ? "Tất cả sản phẩm" : CategoryTitle)</h3>
+                <h3 class="m-0">
+                    @if (!string.IsNullOrEmpty(Category) && categoryList != null)
+                    {
+                        var category = categoryList.FirstOrDefault(c => c.CategoryCode == Category);
+                        @(category?.CategoryName ?? "Tất cả sản phẩm")
+                    }
+                    else
+                    {
+                        @("Tất cả sản phẩm")
+                    }
+                </h3>
                 <div class="d-flex">
-                    <select class="form-select me-2">
-                        <option selected>Sắp xếp theo</option>
-                        <option value="price-low-high">Giá: Thấp đến cao</option>
-                        <option value="price-high-low">Giá: Cao đến thấp</option>
-                        <option value="newest">Mới nhất</option>
-                        <option value="best-selling">Bán chạy</option>
+                    <div class="input-group me-2">
+                        <input type="text" class="form-control" placeholder="Tìm kiếm sản phẩm..." 
+                               @bind="searchTerm" @bind:event="oninput" @onkeypress="HandleSearchKeyPress">
+                        <button class="btn btn-outline-primary" type="button" @onclick="ApplySearch">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <select class="form-select me-2" @onchange="HandleSortChange">
+                        <option selected value="">Sắp xếp mặc định</option>
+                        <option value="productname-asc">Tên: A-Z</option>
+                        <option value="productname-desc">Tên: Z-A</option>
+                        <option value="price-asc">Giá: Thấp đến cao</option>
+                        <option value="price-desc">Giá: Cao đến thấp</option>
+                        <option value="productid-desc">Mới nhất</option>
+                        <option value="productid-asc">Cũ nhất</option>
                     </select>
                     <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-outline-secondary">
+                        <button type="button" class="btn btn-outline-secondary active">
                             <i class="bi bi-grid-3x3-gap-fill"></i>
                         </button>
                         <button type="button" class="btn btn-outline-secondary">
@@ -121,75 +357,133 @@
                 </div>
             </div>
 
+            <!-- Search Results Info -->
+            @if (!string.IsNullOrWhiteSpace(searchTerm) && productResponseList != null)
+            {
+                <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
+                    <span>
+                        Kết quả tìm kiếm cho "<strong>@searchTerm</strong>": @productResponseList.TotalCount sản phẩm
+                    </span>
+                    <button type="button" class="btn-close" @onclick="ClearSearch" aria-label="Close"></button>
+                </div>
+            }
+
             <!-- Products Grid -->
             <div class="row">
-                @for (int i = 1; i <= 12; i++)
+                @if (isLoading)
                 {
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100 product-card">
-                            <div class="position-relative">
-                                <img src="https://placehold.co/300x200" class="card-img-top" alt="Kính mẫu @i">
-                                @if (i % 3 == 0)
-                                {
-                                    <span class="badge bg-danger position-absolute top-0 end-0 m-2">Sale</span>
-                                }
-                                @if (i % 5 == 0)
-                                {
-                                    <span class="badge bg-success position-absolute top-0 start-0 m-2">Mới</span>
-                                }
-                            </div>
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">Gọng kính model @i</h5>
-                                <p class="text-muted small">SKU: KM@(1000 + i)</p>
-                                @if (i % 3 == 0)
-                                {
-                                    <p class="card-text">
-                                        <span class="text-decoration-line-through">@(1500000 + i * 100000)đ</span>
-                                        <span class="text-danger ms-2 fw-bold">@(1200000 + i * 100000)đ</span>
-                                    </p>
-                                }
-                                else
-                                {
-                                    <p class="card-text">@(1200000 + i * 100000)đ</p>
-                                }
-                                <div class="text-warning mb-2">
-                                    @for (int j = 0; j < 5; j++)
-                                    {
-                                        if (j < (i % 5 + 3))
-                                        {
-                                            <i class="bi bi-star-fill"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="bi bi-star"></i>
-                                        }
-                                    }
-                                    <span class="text-muted ms-1">(@(10 + i))</span>
-                                </div>
-                                <div class="mt-auto d-flex">
-                                    <a href="/product/@i" class="btn btn-sm btn-outline-primary flex-grow-1 me-2">Xem chi tiết</a>
-                                    <button class="btn btn-sm btn-primary">
-                                        <i class="bi bi-cart-plus"></i>
-                                    </button>
+                    @for (int i = 0; i < 9; i++)
+                    {
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="skeleton skeleton-image"></div>
+                                <div class="card-body d-flex flex-column">
+                                    <div class="skeleton skeleton-text title"></div>
+                                    <div class="skeleton skeleton-text small"></div>
+                                    <div class="skeleton skeleton-text price"></div>
+                                    <div class="mt-auto d-flex">
+                                        <div class="skeleton skeleton-button w-100"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    }
+                }
+                else if (productResponseList == null || productResponseList.Items == null || !productResponseList.Items.Any())
+                {
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-search" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">Không tìm thấy sản phẩm nào</h4>
+                        <p>Vui lòng thử lại với tiêu chí tìm kiếm khác</p>
                     </div>
+                }
+                else
+                {
+                    @foreach (var item in productResponseList.Items)
+                    {
+                        bool isOutOfStock = item.Status == "OutOfStock";
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 product-card @(isOutOfStock ? "out-of-stock" : "")">
+                                <div class="position-relative">
+                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/300x200" : item.ImageUrl)" 
+                                         class="card-img-top" alt="@item.ProductName">
+                                    @if (item.Status == "Sale")
+                                    {
+                                        <span class="badge bg-danger position-absolute top-0 end-0 m-2">Sale</span>
+                                    }
+                                    @if (item.Status == "New")
+                                    {
+                                        <span class="badge bg-success position-absolute top-0 start-0 m-2">Mới</span>
+                                    }
+                                    @if (isOutOfStock)
+                                    {
+                                        <span class="badge bg-secondary position-absolute top-0 end-0 m-2">Hết hàng</span>
+                                    }
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">@item.ProductName</h5>
+                                    <p class="text-muted small">@item.CategoryName</p>
+                                    <p class="card-text">@item.PriceOfBaseVariant.ToString("N0")đ</p>
+                                    <div class="mt-auto d-flex">
+                                        <a href="/product/@item.ProductId" class="btn btn-sm btn-outline-primary flex-grow-1 me-2">Xem chi tiết</a>
+                                        <button class="btn btn-sm btn-primary @(isOutOfStock ? "disabled" : "")" 
+                                                disabled="@isOutOfStock"
+                                                @onclick="() => AddToCart(item.BaseVariantId)">
+                                            <i class="bi bi-cart-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                @if (isOutOfStock)
+                                {
+                                    <div class="out-of-stock-overlay">
+                                        <div class="out-of-stock-message">Hết hàng</div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
             </div>
 
             <!-- Pagination -->
             <nav aria-label="Product pagination" class="my-4">
                 <ul class="pagination justify-content-center">
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Trước</a>
+                    <li class="@(currentPage == 1 ? "page-item disabled" : "page-item")">
+                        <a class="page-link" @onclick="() => ChangePage(currentPage - 1)" href="javascript:void(0);">Trước</a>
                     </li>
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#">Sau</a>
-                    </li>
+                    
+                    @if (productResponseList != null)
+                    {
+                        int totalPages = (int)Math.Ceiling((double)productResponseList.TotalCount / pageSize);
+                        
+                        // Hiển thị tối đa 5 nút phân trang
+                        int startPage = Math.Max(1, currentPage - 2);
+                        int endPage = Math.Min(totalPages, startPage + 4);
+                        
+                        if (endPage - startPage < 4)
+                        {
+                            startPage = Math.Max(1, endPage - 4);
+                        }
+                        
+                        for (int i = startPage; i <= endPage; i++)
+                        {
+                            int pageNumber = i;
+                            <li class="@(currentPage == pageNumber ? "page-item active" : "page-item")">
+                                <a class="page-link" @onclick="() => ChangePage(pageNumber)" href="javascript:void(0);">@pageNumber</a>
+                            </li>
+                        }
+                        
+                        <li class="@(currentPage >= totalPages ? "page-item disabled" : "page-item")">
+                            <a class="page-link" @onclick="() => ChangePage(currentPage + 1)" href="javascript:void(0);">Sau</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item active"><a class="page-link" href="javascript:void(0);">1</a></li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="javascript:void(0);">Sau</a>
+                        </li>
+                    }
                 </ul>
             </nav>
         </div>
@@ -199,12 +493,526 @@
 @code {
     [Parameter]
     public string? Category { get; set; }
+    private PagedList<ProductResponse>? productResponseList { get; set; } 
+    
+    // Danh sách Category từ API
+    private List<CategoryInfo>? categoryList;
+    
+    // Phân trang
+    private int currentPage = 1;
+    private int pageSize = 9; // Hiển thị 9 sản phẩm mỗi trang (3x3)
+    private string? filterStatus = "InStock";
+    private string? filterCategory;
+    
+    // Biến theo dõi trạng thái tải
+    private bool isLoading = false;
+    // Biến theo dõi trạng thái tải khi chuyển trang hoặc thay đổi filter
+    private bool isPageLoading = false;
+    private string? sortColumn;
+    private string? sortOrder;
+    
+    // Biến tìm kiếm
+    private string? searchTerm;
+    
+    // Theo dõi tạm trạng thái filter để chỉ áp dụng khi nhấn nút
+    private string? selectedCategory;  // Lưu CategoryCode cho URL
+    private string? selectedCategoryId; // Lưu CategoryId để filter
+    private string? selectedStatus;
+    private bool filtersChanged = false;
 
-    private string CategoryTitle => Category switch
+    private List<ToastNotification> toastNotifications = new List<ToastNotification>();
+
+    protected override async Task OnInitializedAsync()
     {
-        "men" => "Gọng kính nam",
-        "women" => "Gọng kính nữ",
-        "luxury" => "Thương hiệu cao cấp",
-        _ => "Tất cả sản phẩm"
-    };
+        await LoadCategories();
+        await LoadProducts();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Console.WriteLine($"OnParametersSetAsync called: Category={Category}");
+        
+        // Đảm bảo đã load danh sách category
+        if (categoryList == null)
+        {
+            await LoadCategories();
+        }
+        
+        // Reset về trang 1 khi thay đổi category từ URL
+        currentPage = 1;
+        selectedCategory = Category;
+        
+        // Map category parameter sang category ID nếu có
+        if (!string.IsNullOrEmpty(Category))
+        {
+            // Tìm theo code
+            var foundCategory = categoryList?.FirstOrDefault(c => c.CategoryCode == Category);
+            Console.WriteLine($"Found category: {foundCategory?.CategoryName ?? "null"} with ID: {foundCategory?.CategoryId.ToString() ?? "null"}");
+            
+            if (foundCategory != null)
+            {
+                filterCategory = foundCategory.CategoryId.ToString();
+                selectedCategoryId = filterCategory;
+            }
+            else
+            {
+                filterCategory = null;
+                selectedCategoryId = null;
+            }
+        }
+        else
+        {
+            filterCategory = null;
+            selectedCategoryId = null;
+        }
+        
+        Console.WriteLine($"Set filterCategory to: {filterCategory}");
+        isPageLoading = true; // Hiển thị loading overlay
+        await LoadProducts();
+    }
+    
+    private async Task LoadCategories()
+    {
+        try
+        {
+            Console.WriteLine("Loading categories from API");
+            var response = await Http.GetFromJsonAsync<List<CategoryInfo>>("https://localhost:7222/api/categories/info");
+            
+            if (response != null)
+            {
+                // Nếu API không trả về CategoryCode, thì tạo code từ tên
+                foreach (var category in response)
+                {
+                    if (string.IsNullOrEmpty(category.CategoryCode))
+                    {
+                        // Tạo code từ tên danh mục: loại bỏ dấu, lowercase, thay khoảng trắng bằng gạch ngang
+                        category.CategoryCode = GenerateCategoryCode(category.CategoryName);
+                    }
+                }
+                
+                categoryList = response;
+                Console.WriteLine($"Loaded {categoryList.Count} categories");
+                
+                // Log để debug
+                foreach (var cat in categoryList)
+                {
+                    Console.WriteLine($"Category: {cat.CategoryName}, Code: {cat.CategoryCode}, ID: {cat.CategoryId}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("API returned null for categories");
+                categoryList = new List<CategoryInfo>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading categories: {ex.Message}");
+            categoryList = new List<CategoryInfo>();
+        }
+    }
+    
+    private string GenerateCategoryCode(string categoryName)
+    {
+        if (string.IsNullOrEmpty(categoryName))
+            return "unknown";
+            
+        // Chuyển thành lowercase và loại bỏ khoảng trắng đầu cuối
+        string result = categoryName.ToLower().Trim();
+        
+        // Thay thế khoảng trắng bằng gạch ngang
+        result = result.Replace(" ", "-");
+        
+        // Loại bỏ các ký tự đặc biệt, chỉ giữ lại chữ cái, số và gạch ngang
+        result = new string(result.Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray());
+        
+        return result;
+    }
+    
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Nếu là load trang mới thì hiển thị overlay
+            if (isPageLoading)
+            {
+                await Task.Delay(300); // Tạo độ trễ nhỏ để hiệu ứng hiển thị mượt mà hơn
+            }
+            
+            string url = $"https://localhost:7222/api/products?page={currentPage}&pageSize={pageSize}";
+            
+            if (!string.IsNullOrEmpty(filterStatus))
+            {
+                url += $"&filterProductStatus={filterStatus}";
+            }
+            
+            if (!string.IsNullOrEmpty(filterCategory))
+            {
+                url += $"&filterCategory={filterCategory}";
+                Console.WriteLine($"Filtering by category: {filterCategory}");
+            }
+            
+            if (!string.IsNullOrEmpty(sortColumn) && !string.IsNullOrEmpty(sortOrder))
+            {
+                url += $"&sortColumn={sortColumn}&sortOrder={sortOrder}";
+            }
+            
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                url += $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
+            }
+            
+            Console.WriteLine($"API Call URL: {url}");
+            productResponseList = await Http.GetFromJsonAsync<PagedList<ProductResponse>>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading products: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            isPageLoading = false;
+        }
+    }
+    
+    private void SetCategory(string? categoryCode)
+    {
+        Console.WriteLine($"SetCategory called with code: {categoryCode}");
+        selectedCategory = categoryCode;
+        
+        if (!string.IsNullOrEmpty(categoryCode) && categoryList != null)
+        {
+            var category = categoryList.FirstOrDefault(c => c.CategoryCode == categoryCode);
+            Console.WriteLine($"Found category: {category?.CategoryName}, ID: {category?.CategoryId}");
+            
+            if (category != null)
+            {
+                selectedCategoryId = category.CategoryId.ToString();
+                Console.WriteLine($"Set selectedCategoryId to: {selectedCategoryId}");
+            }
+            else
+            {
+                selectedCategoryId = null;
+                Console.WriteLine("Category not found in list, setting selectedCategoryId to null");
+            }
+        }
+        else
+        {
+            selectedCategoryId = null;
+            Console.WriteLine("CategoryCode is null or empty, setting selectedCategoryId to null");
+        }
+        
+        filtersChanged = true;
+    }
+    
+    private void SetStatus(string? status)
+    {
+        selectedStatus = status;
+        filtersChanged = true;
+    }
+    
+    private async Task HandleSortChange(ChangeEventArgs e)
+    {
+        string? value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value))
+        {
+            sortColumn = null;
+            sortOrder = null;
+        }
+        else
+        {
+            var parts = value.Split('-');
+            if (parts.Length == 2)
+            {
+                sortColumn = parts[0];
+                sortOrder = parts[1];
+            }
+        }
+        
+        currentPage = 1; // Reset về trang 1 khi thay đổi sắp xếp
+        isPageLoading = true; // Hiển thị loading overlay
+        await LoadProducts();
+    }
+    
+    private async Task ApplyFilters()
+    {
+        Console.WriteLine($"ApplyFilters called: selectedCategory={selectedCategory}, selectedCategoryId={selectedCategoryId}, filterCategory={filterCategory}");
+        
+        // Nếu filter không thay đổi thì không cần load lại
+        if (!filtersChanged) 
+        {
+            Console.WriteLine("No filters changed, skipping reload");
+            return;
+        }
+        
+        // Reset về trang 1
+        currentPage = 1;
+        
+        // Cập nhật filter theo các giá trị đã chọn
+        filterCategory = selectedCategoryId;
+        filterStatus = selectedStatus;
+        
+        Console.WriteLine($"After update: filterCategory={filterCategory}, filterStatus={filterStatus}");
+        
+        // Đánh dấu là đang load trang mới
+        isPageLoading = true;
+        
+        // Điều hướng đến URL mới nếu category thay đổi
+        if (selectedCategory != Category)
+        {
+            string newUrl = selectedCategory != null ? $"/collections/{selectedCategory}" : "/collections";
+            Console.WriteLine($"Navigating to: {newUrl}");
+            
+            // NavigationManager.NavigateTo sẽ dẫn đến việc OnParametersSetAsync được gọi lại
+            // Thiết lập filtersChanged = false trước khi chuyển trang
+            filtersChanged = false;
+            NavigationManager.NavigateTo(newUrl);
+        }
+        else
+        {
+            Console.WriteLine("No category change, just reloading products");
+            await LoadProducts();
+            filtersChanged = false;
+        }
+    }
+    
+    private async Task ChangePage(int page)
+    {
+        if (page < 1) return;
+        if (productResponseList != null && page > Math.Ceiling((double)productResponseList.TotalCount / pageSize)) return;
+        
+        currentPage = page;
+        isPageLoading = true;
+        await LoadProducts();
+    }
+
+    private async Task HandleSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplySearch();
+        }
+    }
+    
+    private async Task ApplySearch()
+    {
+        // Reset về trang 1 khi thực hiện tìm kiếm mới
+        currentPage = 1;
+        isPageLoading = true;
+        await LoadProducts();
+    }
+    
+    private async Task ClearSearch()
+    {
+        searchTerm = null;
+        currentPage = 1;
+        isPageLoading = true;
+        await LoadProducts();
+    }
+
+    private async Task AddToCart(Guid productVariantId)
+    {
+        try
+        {
+            var orderRequest = new OrderRequest
+            {
+                ProductVariantId = productVariantId,
+                Quantity = 1
+            };
+            
+            var response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Find the product for the toast message
+                var addedProduct = productResponseList?.Items.FirstOrDefault(p => p.BaseVariantId == productVariantId);
+                
+                if (addedProduct != null)
+                {
+                    // Show success toast
+                    ShowCartToast($"Đã thêm 1 sản phẩm {addedProduct.ProductName} vào giỏ hàng");
+                }
+                else
+                {
+                    ShowToast("Thêm vào giỏ hàng thành công", "Sản phẩm đã được thêm vào giỏ hàng", ToastType.Success);
+                }
+            }
+            else
+            {
+                // Show error toast
+                ShowToast("Thêm vào giỏ hàng thất bại", 
+                          "Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.", 
+                          ToastType.Error);
+                Console.WriteLine($"Error adding to cart: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Show error toast
+            ShowToast("Lỗi", 
+                      "Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng", 
+                      ToastType.Error);
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+        }
+    }
+    
+    private void ShowCartToast(string message)
+    {
+        // Create HTML content with button to navigate to cart page
+        var cartToastId = Guid.NewGuid().ToString();
+        var toast = new ToastNotification
+        {
+            Id = cartToastId,
+            Title = "Thêm vào giỏ hàng thành công",
+            Message = $"{message} <div class='mt-2'><a href='/cart' class='btn btn-primary btn-sm me-2'>Xem giỏ hàng</a><button class='btn btn-outline-secondary btn-sm' onclick=\"document.getElementById('{cartToastId}').remove()\">Tiếp tục mua sắm</button></div>",
+            Type = ToastType.Success,
+            Timestamp = DateTime.Now,
+            IsHtml = true
+        };
+        
+        toastNotifications.Add(toast);
+        
+        // Auto-remove the toast after 8 seconds
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(8000);
+            await InvokeAsync(() =>
+            {
+                if (toastNotifications.Contains(toast))
+                {
+                    toastNotifications.Remove(toast);
+                    StateHasChanged();
+                }
+            });
+        });
+        
+        StateHasChanged();
+    }
+
+    private void ShowToast(string title, string message, ToastType type)
+    {
+        var toast = new ToastNotification
+        {
+            Id = Guid.NewGuid().ToString(),
+            Title = title,
+            Message = message,
+            Type = type,
+            Timestamp = DateTime.Now
+        };
+        
+        toastNotifications.Add(toast);
+        
+        // Auto-remove the toast after 5 seconds
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(5000);
+            await InvokeAsync(() =>
+            {
+                if (toastNotifications.Contains(toast))
+                {
+                    toastNotifications.Remove(toast);
+                    StateHasChanged();
+                }
+            });
+        });
+        
+        StateHasChanged();
+    }
+    
+    private void RemoveToast(ToastNotification toast)
+    {
+        toastNotifications.Remove(toast);
+        StateHasChanged();
+    }
+    
+    // Toast notification models
+    private enum ToastType
+    {
+        Success,
+        Error,
+        Warning,
+        Info
+    }
+    
+    private class ToastNotification
+    {
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public ToastType Type { get; set; }
+        public DateTime Timestamp { get; set; }
+        public bool IsHtml { get; set; }
+        
+        public string HeaderClass => Type switch
+        {
+            ToastType.Success => "bg-success text-white",
+            ToastType.Error => "bg-danger text-white",
+            ToastType.Warning => "bg-warning text-dark",
+            ToastType.Info => "bg-info text-dark",
+            _ => "bg-primary text-white"
+        };
+        
+        public string Icon => Type switch
+        {
+            ToastType.Success => "bi-check-circle-fill",
+            ToastType.Error => "bi-exclamation-triangle-fill",
+            ToastType.Warning => "bi-exclamation-circle-fill",
+            ToastType.Info => "bi-info-circle-fill",
+            _ => "bi-bell-fill"
+        };
+    }
+    
+    private class OrderRequest
+    {
+        public Guid ProductVariantId { get; set; }
+        public int Quantity { get; set; }
+    }
+    
+    #region Models response
+    private class CategoryInfo
+    {
+        public Guid CategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+        public string CategoryCode { get; set; } = string.Empty;
+    }
+    
+    private class VariantResponse
+    {
+        public Guid ProductVariantId { get; set; }
+        public Guid ProductId { get; set; }
+        public string VariantName { get; set; } = string.Empty;
+        public string ColorCode { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool IsAvailable { get; set; }
+    }
+
+    private class ProductResponse
+    {
+        public Guid ProductId { get; set; }
+        public Guid BaseVariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal PriceOfBaseVariant { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? Description { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+        public VariantResponse[] Variants { get; set; } = Array.Empty<VariantResponse>();
+    }
+
+    private class PagedList<T>(List<T> items, int page, int pageSize, int totalCount)
+    {
+        public List<T> Items { get; set; } = items;
+        public int Page { get; set; } = page;
+        public int PageSize { get; set; } = pageSize;
+        public int TotalCount { get; set; } = totalCount;
+        public bool HasNextPage => Page * PageSize < TotalCount;
+        public bool HaspreviousPage => Page > 1;
+    }
+    #endregion
 } 

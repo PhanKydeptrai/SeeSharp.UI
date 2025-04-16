@@ -101,3 +101,10 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+/* Skeleton animation for loading effects */
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
