@@ -1,8 +1,10 @@
 ﻿@using Blazored.LocalStorage
 @using Microsoft.AspNetCore.Components.Web
+@using System.Net.Http.Json
 @inject ILocalStorageService localStorage
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient Http
 
 <div class="row py-3 align-items-center">
     <div class="col-md-3">
@@ -39,30 +41,45 @@
                 </ul>
             </div>
             <div class="dropdown me-3">
-                <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" @onclick="LoadWishlistItems">
                     <i class="bi bi-heart fs-4"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                        2
+                        @(wishlistItems?.Count() ?? 0)
                     </span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-end" style="min-width: 300px;">
                     <h6 class="dropdown-header">Sản phẩm yêu thích</h6>
-                    <div class="dropdown-item d-flex align-items-center">
-                        <img src="https://placehold.co/50" class="me-2" alt="Product">
-                        <div>
-                            <p class="mb-0">Gọng kính model 1</p>
-                            <small class="text-muted">1.300.000đ</small>
+                    
+                    @if (isLoadingWishlist)
+                    {
+                        <div class="dropdown-item text-center">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="dropdown-item d-flex align-items-center">
-                        <img src="https://placehold.co/50" class="me-2" alt="Product">
-                        <div>
-                            <p class="mb-0">Gọng kính model 3</p>
-                            <small class="text-muted">1.500.000đ</small>
+                    }
+                    else if (wishlistItems == null || !wishlistItems.Any())
+                    {
+                        <div class="dropdown-item text-center">
+                            <p class="mb-0">Không có sản phẩm yêu thích</p>
                         </div>
-                    </div>
+                    }
+                    else
+                    {
+                        @foreach (var item in wishlistItems)
+                        {
+                            <div class="dropdown-item d-flex align-items-center">
+                                <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/50" : item.ImageUrl)" class="me-2" alt="@item.ProductName" style="width:50px;height:50px;object-fit:cover;">
+                                <div>
+                                    <p class="mb-0">@item.ProductName</p>
+                                    <small class="text-muted">@(item.Price.ToString("N0"))đ</small>
+                                </div>
+                            </div>
+                        }
+                    }
+                    
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item text-center" href="#">Xem tất cả</a>
+                    <a class="dropdown-item text-center" href="/wishlist">Xem tất cả</a>
                 </div>
             </div>
             <div class="dropdown">
@@ -82,6 +99,8 @@
     private bool isLoggedIn;
     private string? accessToken;
     private string searchTerm = string.Empty;
+    private List<WishlistItem>? wishlistItems;
+    private bool isLoadingWishlist = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,5 +137,54 @@
         {
             Search();
         }
+    }
+
+    private async Task LoadWishlistItems()
+    {
+        try
+        {
+            isLoadingWishlist = true;
+            
+            // Set authorization header if user is logged in
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            }
+            
+            var response = await Http.GetFromJsonAsync<WishlistResponse>("https://localhost:7222/api/wishitems");
+            wishlistItems = response?.Items.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading wishlist: {ex.Message}");
+            wishlistItems = new List<WishlistItem>();
+        }
+        finally
+        {
+            isLoadingWishlist = false;
+            StateHasChanged();
+        }
+    }
+
+    public class WishlistItem
+    {
+        public string WishItemId { get; set; } = string.Empty;
+        public string ProductVariantId { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+    }
+
+    public class WishlistResponse
+    {
+        public List<WishlistItem> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasNextPage { get; set; }
+        public bool HasPreviousPage { get; set; }
     }
 }

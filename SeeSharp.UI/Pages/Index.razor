@@ -1,6 +1,8 @@
 @page "/"
 @using Blazored.LocalStorage
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILocalStorageService LocalStorage
+@inject HttpClient Http
 <PageTitle>Trang chủ - Gọng Kính Thời Trang C#</PageTitle>
 
 <div class="container mt-4">
@@ -142,5 +144,41 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        // Check if accessToken exists in localStorage
+        var accessToken = await LocalStorage.GetItemAsStringAsync("accessToken");
+        
+        // If no accessToken exists, check for a guest token
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            // Check if guestToken already exists
+            var guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+            
+            // Only call the API if neither accessToken nor guestToken exists
+            if (string.IsNullOrEmpty(guestToken))
+            {
+                try
+                {
+                    // Call the guest token endpoint
+                    var response = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                    
+                    if (response != null && !string.IsNullOrEmpty(response.Token))
+                    {
+                        // Store the guest token in localStorage
+                        await LocalStorage.SetItemAsStringAsync("guestToken", response.Token);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error getting guest token: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    // Response model for the guest token API
+    private class GuestTokenResponse
+    {
+        public string Token { get; set; }
     }
 }

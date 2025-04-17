@@ -448,12 +448,13 @@
                                 else
                                 {
                                     <div class="table-responsive">
-                                        <table class="table">
+                                        <table class="table table-striped table-hover">
                                             <thead>
                                                 <tr>
                                                     <th>Order ID</th>
-                                                    <th>Date</th>
-                                                    <th>Status</th>
+                                                    <th>Customer</th>
+                                                    <th>Payment Status</th>
+                                                    <th>Payment Method</th>
                                                     <th>Total</th>
                                                     <th>Actions</th>
                                                 </tr>
@@ -462,14 +463,15 @@
                                                 @foreach (var order in orders)
                                                 {
                                                     <tr>
-                                                        <td>@order.OrderId</td>
-                                                        <td>@order.OrderDate.ToShortDateString()</td>
+                                                        <td>@order.OrderId.Substring(0, Math.Min(8, order.OrderId.Length))...</td>
+                                                        <td>@order.UserName</td>
                                                         <td>
-                                                            <span class="badge @GetStatusBadgeClass(order.Status)">
-                                                                @order.Status
+                                                            <span class="badge @GetStatusBadgeClass(order.PaymentStatus)">
+                                                                @order.PaymentStatus
                                                             </span>
                                                         </td>
-                                                        <td>@order.TotalAmount.ToString("C")</td>
+                                                        <td>@(string.IsNullOrEmpty(order.PaymentMethod) ? "N/A" : order.PaymentMethod)</td>
+                                                        <td>@FormatCurrency(order.Total)</td>
                                                         <td>
                                                             <button class="btn btn-sm btn-info"
                                                                 @onclick="() => ViewOrderDetails(order.OrderId)">
@@ -495,12 +497,174 @@
     </NotAuthorized>
 </AuthorizeView>
 
+@if (selectedOrderDetails != null)
+{
+    <div class="modal fade show" id="orderDetailsModal" style="display: block; background-color: rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Chi tiết đơn hàng #@selectedOrderDetails.OrderId.Substring(0, 8)...</h5>
+                    <button type="button" class="btn-close" @onclick="CloseOrderDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Customer:</strong> @selectedOrderDetails.CustomerName</p>
+                            <p><strong>Phone:</strong> @selectedOrderDetails.PhoneNumber</p>
+                            <p><strong>Address:</strong> @selectedOrderDetails.SpecificAddress</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Payment Status:</strong> 
+                                <span class="badge bg-info">@selectedOrderDetails.PaymentStatus</span>
+                            </p>
+                            <p><strong>Payment Method:</strong> 
+                                @(string.IsNullOrEmpty(selectedOrderDetails.PaymentMethod) ? "N/A" : selectedOrderDetails.PaymentMethod)
+                            </p>
+                            @if (!string.IsNullOrEmpty(selectedOrderDetails.BillId))
+                            {
+                                <p><strong>Bill ID:</strong> @selectedOrderDetails.BillId.Substring(0, Math.Min(10, selectedOrderDetails.BillId.Length))...</p>
+                                <p><strong>Bill Total:</strong> @FormatCurrency(selectedOrderDetails.BillTotal)</p>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedOrderDetails.VoucherCode))
+                    {
+                        <div class="alert alert-info mb-3">
+                            <strong>Voucher Applied:</strong> @selectedOrderDetails.VoucherCode
+                        </div>
+                    }
+
+                    <h6 class="mb-3">Items</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%;">Product</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in selectedOrderDetails.OrderDetails)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                            {
+                                                <img src="@item.ImageUrl" alt="Product" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;" />
+                                            }
+                                            <div>
+                                                <span class="fw-bold">@item.ProductName</span>
+                                                @if (!string.IsNullOrEmpty(item.VariantName))
+                                                {
+                                                    <br />
+                                                    <small class="text-muted">Variant: @item.VariantName</small>
+                                                }
+                                                @if (!string.IsNullOrEmpty(item.ColorCode))
+                                                {
+                                                    <br />
+                                                    <small class="text-muted d-flex align-items-center">
+                                                        Color: 
+                                                        <span class="color-preview ms-1" style="width: 15px; height: 15px; border-radius: 50%; background-color: @item.ColorCode; display: inline-block; margin-right: 5px;"></span>
+                                                    </small>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>@FormatCurrency(item.Price)</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@FormatCurrency(item.Total)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>@FormatCurrency(selectedOrderDetails.Total)</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseOrderDetailsModal">Close</button>
+                    @if (selectedOrderDetails != null && 
+                         selectedOrderDetails.PaymentStatus.ToLower() != "cancelled" && 
+                         selectedOrderDetails.PaymentStatus.ToLower() != "completed" &&
+                         selectedOrderDetails.PaymentStatus.ToLower() != "delivered")
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => ShowCancelOrderConfirmation(selectedOrderDetails.OrderId)">
+                            @if (isCancellingOrder && orderIdBeingCancelled == selectedOrderDetails.OrderId)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                <span>Huỷ đơn hàng...</span>
+                            }
+                            else
+                            {
+                                <span>Huỷ đơn hàng</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showCancelConfirmation)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận huỷ đơn hàng</h5>
+                    <button type="button" class="btn-close" @onclick="CancelConfirmationClose"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn huỷ đơn hàng này?</p>
+                    <p><strong>Lưu ý:</strong> Hành động này không thể hoàn tác.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelConfirmationClose">Không, giữ đơn hàng</button>
+                    <button type="button" class="btn btn-danger" @onclick="CancelOrder" disabled="@isCancellingOrder">
+                        @if (isCancellingOrder)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            <span>Đang huỷ...</span>
+                        }
+                        else
+                        {
+                            <span>Có, huỷ đơn hàng</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (isOrderDetailsLoading)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Loading order details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private UserProfileResponse userProfile = new();
     private int genderValue;
     private ChangePasswordRequest changePasswordRequest = new();
-    private List<Order> orders = new();
+    private List<OrderHistoryItem> orders = new();
     private bool isLoading = true;
     private bool isPageLoading = false;
     private bool isChangingPassword = false;
@@ -519,6 +683,13 @@
     private const int MaxFileSize = 2 * 1024 * 1024; // 2MB
     private readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png" };
 
+    // Order properties
+    private OrderDetailsResponse? selectedOrderDetails;
+    private bool isOrderDetailsLoading = false;
+    private bool showCancelConfirmation = false;
+    private string orderIdToCancel = string.Empty;
+    private bool isCancellingOrder = false;
+    private string orderIdBeingCancelled = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -545,7 +716,7 @@
             }
 
             // Load orders
-            @* await LoadOrders(); *@
+            await LoadOrders();
         }
         finally
         {
@@ -565,6 +736,11 @@
         
         // Simulate section loading
         _ = Task.Run(async () => {
+            if (section == OrdersSection)
+            {
+                await LoadOrders();
+            }
+            
             await Task.Delay(500);
             isLoading = false;
             StateHasChanged();
@@ -576,8 +752,17 @@
         isLoading = true;
         try
         {
-            // Simulate API call
-            await Task.Delay(500);
+            var response = await Http.GetFromJsonAsync<List<OrderHistoryItem>>("https://localhost:7222/api/orders/history");
+            if (response != null)
+            {
+                orders = response; // Simply assign the response to orders
+                Console.WriteLine($"Loaded {orders.Count} orders with details");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading orders: {ex.Message}");
+            ShowErrorMessage("Failed to load orders. Please try again later.");
         }
         finally
         {
@@ -731,27 +916,77 @@
 
     private async Task ViewOrderDetails(string orderId)
     {
-        // TODO: Navigate to order details page
-        isPageLoading = true;
-        try 
+        isOrderDetailsLoading = true;
+        
+        try
         {
-            // Simulate API call
-            await Task.Delay(500);
-            // Future implementation: navigate to order details
+            // Find the order in our existing list
+            var order = orders.FirstOrDefault(o => o.OrderId == orderId);
+            if (order != null)
+            {
+                selectedOrderDetails = new OrderDetailsResponse
+                {
+                    OrderId = order.OrderId,
+                    CustomerName = order.UserName,
+                    PhoneNumber = order.PhoneNumber,
+                    SpecificAddress = order.SpecificAddress,
+                    OrderStatus = "N/A", // This field doesn't exist in the response
+                    PaymentStatus = order.PaymentStatus,
+                    PaymentMethod = order.PaymentMethod,
+                    BillId = order.BillId,
+                    BillTotal = order.BillTotal,
+                    VoucherCode = order.VoucherCode,
+                    Total = order.Total,
+                    OrderDetails = order.OrderDetails
+                };
+            }
+            else
+            {
+                // Fallback to API call if the order is not found in our list
+                var response = await Http.GetFromJsonAsync<OrderHistoryItem>($"https://localhost:7222/api/orders/detail/{orderId}");
+                if (response != null)
+                {
+                    selectedOrderDetails = new OrderDetailsResponse
+                    {
+                        OrderId = response.OrderId,
+                        CustomerName = response.UserName,
+                        PhoneNumber = response.PhoneNumber,
+                        SpecificAddress = response.SpecificAddress,
+                        OrderStatus = "N/A", // This field doesn't exist in the response
+                        PaymentStatus = response.PaymentStatus,
+                        PaymentMethod = response.PaymentMethod,
+                        BillId = response.BillId,
+                        BillTotal = response.BillTotal,
+                        VoucherCode = response.VoucherCode,
+                        Total = response.Total,
+                        OrderDetails = response.OrderDetails
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order details: {ex.Message}");
+            ShowErrorMessage("Failed to load order details. Please try again later.");
         }
         finally
         {
-            isPageLoading = false;
+            isOrderDetailsLoading = false;
         }
+    }
+
+    private void CloseOrderDetailsModal()
+    {
+        selectedOrderDetails = null;
     }
 
     private string GetStatusBadgeClass(string status)
     {
         return status.ToLower() switch
         {
-            "completed" => "bg-success",
-            "processing" => "bg-warning",
-            "cancelled" => "bg-danger",
+            "completed" or "paid" => "bg-success",
+            "processing" or "pending" => "bg-warning",
+            "cancelled" or "failed" => "bg-danger",
             _ => "bg-secondary"
         };
     }
@@ -842,9 +1077,61 @@
     private class Order
     {
         public string OrderId { get; set; } = string.Empty;
-        public DateTime OrderDate { get; set; }
+        public DateTime OrderDate { get; set; } = DateTime.Now; // Default to current date since it's not in response
         public string Status { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string BillId { get; set; } = string.Empty;
+        public decimal BillTotal { get; set; }
+        public List<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
+    }
+
+    private class OrderDetail
+    {
+        public string OrderDetailId { get; set; } = string.Empty;
+        public string ProductId { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public string VariantName { get; set; } = string.Empty;
+        public string ColorCode { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int Quantity { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public decimal Total { get; set; }
+    }
+
+    // Update the OrderDetailsResponse class to match the necessary fields
+    private class OrderDetailsResponse
+    {
+        public string OrderId { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string SpecificAddress { get; set; } = string.Empty;
+        public string OrderStatus { get; set; } = string.Empty;
+        public string PaymentStatus { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string BillId { get; set; } = string.Empty;
+        public decimal BillTotal { get; set; }
+        public string? VoucherCode { get; set; }
+        public decimal Total { get; set; }
+        public List<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
+    }
+
+    // Class to match the response format from the history endpoint
+    private class OrderHistoryItem
+    {
+        public string CustomerId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string SpecificAddress { get; set; } = string.Empty;
+        public decimal Total { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string? VoucherCode { get; set; }
+        public string BillId { get; set; } = string.Empty;
+        public decimal BillTotal { get; set; }
+        public string OrderId { get; set; } = string.Empty;
+        public List<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
     }
 
     private class ErrorResponse
@@ -931,6 +1218,76 @@
             var fallbackContent = new StreamContent(file.OpenReadStream(MaxFileSize));
             fallbackContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
             return fallbackContent;
+        }
+    }
+
+    // Format currency as VND
+    private string FormatCurrency(decimal amount)
+    {
+        // Format as Vietnamese Dong
+        return String.Format("{0:#,##0} VNĐ", amount);
+    }
+
+    private void ShowCancelOrderConfirmation(string orderId)
+    {
+        orderIdToCancel = orderId;
+        showCancelConfirmation = true;
+    }
+    
+    private void CancelConfirmationClose()
+    {
+        showCancelConfirmation = false;
+        orderIdToCancel = string.Empty;
+    }
+    
+    private async Task CancelOrder()
+    {
+        if (string.IsNullOrEmpty(orderIdToCancel)) return;
+        
+        isCancellingOrder = true;
+        orderIdBeingCancelled = orderIdToCancel;
+        
+        try
+        {
+            var response = await Http.PostAsync($"https://localhost:7222/api/orders/cancel/{orderIdToCancel}", null);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Close the confirmation modal
+                showCancelConfirmation = false;
+                
+                // Update the order status in the UI
+                var order = orders.FirstOrDefault(o => o.OrderId == orderIdToCancel);
+                if (order != null)
+                {
+                    order.PaymentStatus = "Cancelled";
+                    
+                    // Also update the selected order details if it's the same order
+                    if (selectedOrderDetails != null && selectedOrderDetails.OrderId == orderIdToCancel)
+                    {
+                        selectedOrderDetails.PaymentStatus = "Cancelled";
+                    }
+                }
+                
+                ShowSuccessMessage("Đơn hàng đã được huỷ thành công");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error cancelling order: {errorContent}");
+                ShowErrorMessage("Không thể huỷ đơn hàng. Vui lòng thử lại sau.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception cancelling order: {ex.Message}");
+            ShowErrorMessage("Đã xảy ra lỗi khi huỷ đơn hàng. Vui lòng thử lại sau.");
+        }
+        finally
+        {
+            isCancellingOrder = false;
+            orderIdBeingCancelled = string.Empty;
+            orderIdToCancel = string.Empty;
         }
     }
 }

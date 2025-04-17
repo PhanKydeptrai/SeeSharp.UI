@@ -2,6 +2,8 @@
 @using System.Net.Http.Json
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <PageTitle>Chi tiết sản phẩm - Kính Thời Trang</PageTitle>
 
@@ -278,7 +280,7 @@ else
                     </div>
 
                     <div class="product-additional-actions d-flex mb-4">
-                        <button class="btn btn-outline-secondary me-2">
+                        <button class="btn btn-outline-secondary me-2" @onclick="AddToWishlist">
                             <i class="bi bi-heart me-1"></i> Yêu thích
                         </button>
                         <button class="btn btn-outline-secondary">
@@ -543,9 +545,43 @@ else
     private int quantity = 1;
     private List<ProductResponse> relatedProducts = null;
     private List<ToastNotification> toastNotifications = new List<ToastNotification>();
+    private bool isAuthenticated = false;
+    private string guestToken;
 
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication state
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+        
+        // If not authenticated, get or request a guest token
+        if (!isAuthenticated)
+        {
+            // Get guest token from localStorage
+            guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+            
+            // If no guest token exists, get a new one
+            if (string.IsNullOrEmpty(guestToken))
+            {
+                try
+                {
+                    // Call the guest token endpoint
+                    var tokenResponse = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                    
+                    if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.Token))
+                    {
+                        // Store the guest token in localStorage
+                        await LocalStorage.SetItemAsStringAsync("guestToken", tokenResponse.Token);
+                        guestToken = tokenResponse.Token;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error getting guest token: {ex.Message}");
+                }
+            }
+        }
+        
         await LoadProductData();
     }
 
@@ -665,7 +701,62 @@ else
                 Quantity = quantity
             };
 
-            var response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            HttpResponseMessage response;
+            
+            // Check if user is authenticated
+            if (isAuthenticated)
+            {
+                // Use the regular endpoint for authenticated users
+                response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            }
+            else
+            {
+                // Get guest token from localStorage if not already retrieved
+                if (string.IsNullOrEmpty(guestToken))
+                {
+                    guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+                    
+                    // If still no guest token exists, get a new one
+                    if (string.IsNullOrEmpty(guestToken))
+                    {
+                        try
+                        {
+                            // Call the guest token endpoint
+                            var tokenResponse = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                            
+                            if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.Token))
+                            {
+                                // Store the guest token in localStorage
+                                await LocalStorage.SetItemAsStringAsync("guestToken", tokenResponse.Token);
+                                guestToken = tokenResponse.Token;
+                            }
+                            else
+                            {
+                                ShowToast("Lỗi", "Không thể tạo phiên mua sắm khách. Vui lòng thử lại sau.", ToastType.Error);
+                                return;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error getting guest token: {ex.Message}");
+                            ShowToast("Lỗi", "Không thể tạo phiên mua sắm khách. Vui lòng thử lại sau.", ToastType.Error);
+                            return;
+                        }
+                    }
+                }
+                
+                // Create a new HttpRequestMessage with Bearer token
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/guest")
+                {
+                    Content = JsonContent.Create(orderRequest)
+                };
+                
+                // Add Bearer token to request header
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send request
+                response = await Http.SendAsync(request);
+            }
             
             if (response.IsSuccessStatusCode)
             {
@@ -730,7 +821,62 @@ else
                 Quantity = 1 // Default to 1 for quick add
             };
 
-            var response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            HttpResponseMessage response;
+            
+            // Check if user is authenticated
+            if (isAuthenticated)
+            {
+                // Use the regular endpoint for authenticated users
+                response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            }
+            else
+            {
+                // Get guest token from localStorage if not already retrieved
+                if (string.IsNullOrEmpty(guestToken))
+                {
+                    guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+                    
+                    // If still no guest token exists, get a new one
+                    if (string.IsNullOrEmpty(guestToken))
+                    {
+                        try
+                        {
+                            // Call the guest token endpoint
+                            var tokenResponse = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                            
+                            if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.Token))
+                            {
+                                // Store the guest token in localStorage
+                                await LocalStorage.SetItemAsStringAsync("guestToken", tokenResponse.Token);
+                                guestToken = tokenResponse.Token;
+                            }
+                            else
+                            {
+                                ShowToast("Lỗi", "Không thể tạo phiên mua sắm khách. Vui lòng thử lại sau.", ToastType.Error);
+                                return;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error getting guest token: {ex.Message}");
+                            ShowToast("Lỗi", "Không thể tạo phiên mua sắm khách. Vui lòng thử lại sau.", ToastType.Error);
+                            return;
+                        }
+                    }
+                }
+                
+                // Create a new HttpRequestMessage with Bearer token
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/guest")
+                {
+                    Content = JsonContent.Create(orderRequest)
+                };
+                
+                // Add Bearer token to request header
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send request
+                response = await Http.SendAsync(request);
+            }
             
             if (response.IsSuccessStatusCode)
             {
@@ -918,5 +1064,45 @@ else
     {
         public string ProductVariantId { get; set; }
         public int Quantity { get; set; }
+    }
+
+    private async Task AddToWishlist()
+    {
+        if (selectedVariant == null)
+        {
+            return; // Không có variant được chọn
+        }
+
+        try
+        {
+            var response = await Http.PostAsync($"https://localhost:7222/api/wishitems/{selectedVariant.ProductVariantId}", null);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                ShowToast("Đã thêm vào danh sách yêu thích", 
+                         $"Sản phẩm {product.ProductName} ({selectedVariant.VariantName}) đã được thêm vào danh sách yêu thích", 
+                         ToastType.Success);
+            }
+            else
+            {
+                ShowToast("Thêm vào yêu thích thất bại", 
+                         "Không thể thêm sản phẩm vào danh sách yêu thích. Vui lòng thử lại sau.", 
+                         ToastType.Error);
+                Console.WriteLine($"Error adding to wishlist: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Lỗi", 
+                     "Đã xảy ra lỗi khi thêm sản phẩm vào danh sách yêu thích", 
+                     ToastType.Error);
+            Console.WriteLine($"Exception adding to wishlist: {ex.Message}");
+        }
+    }
+
+    // Response model for the guest token API
+    private class GuestTokenResponse
+    {
+        public string Token { get; set; } = string.Empty;
     }
 } 

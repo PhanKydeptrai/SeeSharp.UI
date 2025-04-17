@@ -1,0 +1,1039 @@
+@page "/checkout"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Thanh toán - Kính Thời Trang</PageTitle>
+
+<style>
+    /* Toast Notification */
+    .toast-container {
+    z-index: 1080;
+    }
+
+    .toast {
+    min-width: 300px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    animation: toast-in-right 0.3s ease-in-out;
+    }
+
+    @@keyframes toast-in-right {
+    from {
+    transform: translateX(100%);
+    opacity: 0;
+    }
+    to {
+    transform: translateX(0);
+    opacity: 1;
+    }
+    }
+
+    .toast-header {
+    padding: 0.75rem 1rem;
+    }
+
+    .toast-body {
+    padding: 1rem;
+    }
+
+    .toast .btn-close {
+    background-color: transparent;
+    opacity: 0.8;
+    }
+
+    .toast .btn-close:hover {
+    opacity: 1;
+    }
+
+    .checkout-section {
+    margin-bottom: 2rem;
+    }
+</style>
+
+<!-- Toast Notification Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+    @foreach (var toast in toastNotifications)
+    {
+        <div class="toast show mb-2" role="alert" aria-live="assertive" aria-atomic="true" id="@toast.Id">
+            <div class="toast-header @toast.HeaderClass">
+                <i class="bi @toast.Icon me-2"></i>
+                <strong class="me-auto">@toast.Title</strong>
+                <small>@toast.Timestamp.ToString("HH:mm:ss")</small>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="() => RemoveToast(toast)"></button>
+            </div>
+            <div class="toast-body">
+                @if (toast.IsHtml)
+                {
+                    @((MarkupString)toast.Message)
+                }
+                else
+                {
+                    @toast.Message
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a href="/cart">Giỏ hàng</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Thanh toán</li>
+        </ol>
+    </nav>
+
+    <h2 class="mb-4">Thanh toán đơn hàng</h2>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-2">Đang tải thông tin thanh toán...</p>
+        </div>
+    }
+    else if (order == null || order.OrderDetails.Count == 0)
+    {
+        <!-- Empty Cart -->
+        <div class="text-center py-5">
+            <i class="bi bi-cart-x" style="font-size: 4rem;"></i>
+            <h3 class="mt-3">Giỏ hàng của bạn đang trống</h3>
+            <p class="text-muted">Không thể tiến hành thanh toán khi giỏ hàng trống</p>
+            <a href="/collections" class="btn btn-primary mt-3">
+                Tiếp tục mua sắm
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Checkout Form -->
+            <div class="col-lg-8">
+                <!-- Shipping Information -->
+                <div class="card mb-4 checkout-section">
+                    <div class="card-header">
+                        <h5 class="mb-0">Thông tin giao hàng</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="fullName" class="form-label">Họ và tên</label>
+                                <input type="text" class="form-control" id="fullName" placeholder="Họ và tên người nhận" @bind="shippingInfo.FullName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Số điện thoại</label>
+                                <input type="tel" class="form-control" id="phone" placeholder="Số điện thoại liên hệ" @bind="shippingInfo.Phone" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" placeholder="Email" @bind="shippingInfo.Email" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="province" class="form-label">Tỉnh/Thành phố</label>
+                                <select class="form-select" id="province" @bind="shippingInfo.Province" required>
+                                    <option value="" selected disabled>Chọn tỉnh/thành phố</option>
+                                    <option value="Hà Nội">Hà Nội</option>
+                                    <option value="Hồ Chí Minh">Hồ Chí Minh</option>
+                                    <option value="Đà Nẵng">Đà Nẵng</option>
+                                    <option value="Hải Phòng">Hải Phòng</option>
+                                    <option value="Cần Thơ">Cần Thơ</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="district" class="form-label">Quận/Huyện</label>
+                                <select class="form-select" id="district" @bind="shippingInfo.District" required>
+                                    <option value="" selected disabled>Chọn quận/huyện</option>
+                                    <option value="Quận 1">Quận 1</option>
+                                    <option value="Quận 2">Quận 2</option>
+                                    <option value="Quận 3">Quận 3</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="ward" class="form-label">Phường/Xã</label>
+                                <select class="form-select" id="ward" @bind="shippingInfo.Ward" required>
+                                    <option value="" selected disabled>Chọn phường/xã</option>
+                                    <option value="Phường 1">Phường 1</option>
+                                    <option value="Phường 2">Phường 2</option>
+                                    <option value="Phường 3">Phường 3</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="address" class="form-label">Địa chỉ cụ thể</label>
+                                <textarea class="form-control" id="address" rows="3" placeholder="Số nhà, tên đường, khu vực" @bind="shippingInfo.Address" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label for="note" class="form-label">Ghi chú (tùy chọn)</label>
+                                <textarea class="form-control" id="note" rows="2" placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn" @bind="shippingInfo.Note"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="card mb-4 checkout-section">
+                    <div class="card-header">
+                        <h5 class="mb-0">Phương thức thanh toán</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="cod" value="COD" checked @onchange="@(e => paymentMethod = "COD")">
+                            <label class="form-check-label d-flex align-items-center" for="cod">
+                                <i class="bi bi-cash me-2 fs-4"></i>
+                                <div>
+                                    <strong>Thanh toán khi nhận hàng (COD)</strong>
+                                    <p class="text-muted mb-0 small">Bạn sẽ thanh toán bằng tiền mặt khi nhận hàng</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="bankTransfer" value="BankTransfer" @onchange="@(e => paymentMethod = "BankTransfer")">
+                            <label class="form-check-label d-flex align-items-center" for="bankTransfer">
+                                <i class="bi bi-bank me-2 fs-4"></i>
+                                <div>
+                                    <strong>Chuyển khoản ngân hàng</strong>
+                                    <p class="text-muted mb-0 small">Thực hiện thanh toán vào tài khoản ngân hàng của chúng tôi. Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh toán.</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="momo" value="Momo" @onchange="@(e => paymentMethod = "Momo")">
+                            <label class="form-check-label d-flex align-items-center" for="momo">
+                                <i class="bi bi-wallet2 me-2 fs-4"></i>
+                                <div>
+                                    <strong>Thanh toán qua Momo</strong>
+                                    <p class="text-muted mb-0 small">Bạn sẽ được chuyển đến cổng thanh toán Momo để hoàn tất giao dịch.</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paymentMethod" id="vnpay" value="VNPay" @onchange="@(e => paymentMethod = "VNPay")">
+                            <label class="form-check-label d-flex align-items-center" for="vnpay">
+                                <i class="bi bi-credit-card me-2 fs-4"></i>
+                                <div>
+                                    <strong>Thanh toán qua VNPay</strong>
+                                    <p class="text-muted mb-0 small">Bạn sẽ được chuyển đến cổng thanh toán VNPay để hoàn tất giao dịch.</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="col-lg-4">
+                <div class="card mb-4 sticky-top" style="top: 20px; z-index: 1000;">
+                    <div class="card-header">
+                        <h5 class="mb-0">Tóm tắt đơn hàng</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Order Items -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small mb-2">
+                                <span class="fw-bold">Sản phẩm (@order.OrderDetails.Count)</span>
+                                <a href="#" class="text-decoration-none" @onclick="@(e => showOrderItems = !showOrderItems)" @onclick:preventDefault>
+                                    @(showOrderItems ? "Ẩn" : "Xem")
+                                </a>
+                            </div>
+
+                            @if (showOrderItems)
+                            {
+                                <div class="border rounded p-2 mb-3">
+                                    @foreach (var item in order.OrderDetails)
+                                    {
+                                        <div class="d-flex justify-content-between py-2 @(order.OrderDetails.Last() != item ? "border-bottom" : "")">
+                                            <div class="d-flex">
+                                                <div class="me-2">
+                                                    <small>@item.Quantity x</small>
+                                                </div>
+                                                <div>
+                                                    <small>Sản phẩm #@item.ProductId.Substring(0, 4)</small>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <small>@FormatPrice(item.Total)đ</small>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Coupon Code -->
+                        @if (isAuthenticated)
+                        {
+                            <div class="mb-3">
+                                <label for="couponCode" class="form-label">Mã giảm giá</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="couponCode" placeholder="Nhập mã giảm giá" @bind="couponCode">
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="ApplyCoupon">Áp dụng</button>
+                                </div>
+                                @if (discountAmount > 0)
+                                {
+                                    <div class="alert alert-success mt-2 py-2 small">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                Đã áp dụng mã giảm giá
+                                            </span>
+                                            <button class="btn btn-sm text-danger p-0" @onclick="RemoveCoupon">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Price Summary -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tạm tính</span>
+                            <span>@FormatPrice(order.Total)đ</span>
+                        </div>
+                        @if (discountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-success">
+                                <span>Giảm giá</span>
+                                <span>-@FormatPrice(discountAmount)đ</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Phí vận chuyển</span>
+                            <span>@(ShippingFee > 0 ? $"{FormatPrice(ShippingFee)}đ" : "Miễn phí")</span>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Tổng cộng</strong>
+                            <strong class="h5 text-danger">@FormatPrice(order.Total - discountAmount + ShippingFee)đ</strong>
+                        </div>
+
+                        <button class="btn btn-primary w-100 mb-3" @onclick="PlaceOrder">
+                            Đặt hàng
+                        </button>
+
+                        <a href="javascript:void(0)" class="btn btn-outline-secondary w-100" @onclick="BackToCart">
+                            <i class="bi bi-arrow-left me-1"></i> Quay lại giỏ hàng
+                        </a>
+
+                        <div class="text-center mt-3">
+                            <small class="text-muted">Chúng tôi chấp nhận</small>
+                            <div class="mt-2">
+                                <i class="bi bi-credit-card me-2" style="font-size: 1.5rem;"></i>
+                                <i class="bi bi-paypal me-2" style="font-size: 1.5rem;"></i>
+                                <i class="bi bi-wallet2 me-2" style="font-size: 1.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    private bool isLoading = true;
+    private Order? order;
+    private decimal ShippingFee => order?.Total >= 1000000 ? 0 : 30000;
+    private List<ToastNotification> toastNotifications = new List<ToastNotification>();
+    private bool showOrderItems = false;
+    private string couponCode = "";
+    private decimal discountAmount = 0;
+    private string paymentMethod = "COD";
+    private ShippingInfo shippingInfo = new ShippingInfo();
+    private string? shippingInformationId = null;
+    private bool isAuthenticated = false;
+    private string? guestToken;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        // Check if user is authenticated by looking for accessToken
+        var accessToken = await LocalStorage.GetItemAsStringAsync("accessToken");
+        isAuthenticated = !string.IsNullOrEmpty(accessToken);
+        
+        if (!isAuthenticated)
+        {
+            // For guest users, get the guest token
+            guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+        }
+
+        // Load cart data and default shipping information based on authentication status
+        var loadTasks = new List<Task> { LoadCartData() };
+        
+        // Only load shipping information for authenticated users
+        if (isAuthenticated)
+        {
+            loadTasks.Add(LoadDefaultShippingInfo());
+        }
+
+        await Task.WhenAll(loadTasks);
+
+        isLoading = false;
+    }
+
+    private async Task LoadDefaultShippingInfo()
+    {
+        // Skip for guest users - this method will only be called for authenticated users
+        try
+        {
+            // Call API to get default shipping information
+            var defaultShippingInfo = await Http.GetFromJsonAsync<DefaultShippingInfo>("https://localhost:7222/api/shipping-informations/default");
+
+            if (defaultShippingInfo != null)
+            {
+                // Map API response to our shipping info model
+                shippingInfo.FullName = defaultShippingInfo.FullName;
+                shippingInfo.Phone = defaultShippingInfo.PhoneNumber;
+                shippingInfo.Province = defaultShippingInfo.Province;
+                shippingInfo.District = defaultShippingInfo.District;
+                shippingInfo.Ward = defaultShippingInfo.Ward;
+                shippingInfo.Address = defaultShippingInfo.SpecificAddress;
+
+                // Store the shipping information ID for use in API calls
+                shippingInformationId = defaultShippingInfo.ShippingInformationId;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading default shipping info: {ex.Message}");
+            // If API fails, form fields will remain empty as requested
+        }
+    }
+
+    private async Task LoadCartData()
+    {
+        try
+        {
+            isLoading = true;
+            
+            if (isAuthenticated)
+            {
+                // Call the API to get payment data for authenticated users
+                order = await Http.GetFromJsonAsync<Order>("https://localhost:7222/api/orders/make-payment");
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(guestToken))
+                {
+                    // If no guest token, show empty cart
+                    order = new Order { OrderDetails = new List<OrderDetail>() };
+                    return;
+                }
+                
+                // Create a request with the guest token for guest users
+                var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7222/api/orders/make-payment");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                var response = await Http.SendAsync(request);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    order = await response.Content.ReadFromJsonAsync<Order>();
+                }
+                else
+                {
+                    // Fall back to the cart endpoint if make-payment fails
+                    request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7222/api/orders/cart");
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                    
+                    response = await Http.SendAsync(request);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        order = await response.Content.ReadFromJsonAsync<Order>();
+                    }
+                    else
+                    {
+                        ShowToast("Lỗi", "Không thể tải dữ liệu đơn hàng", ToastType.Error);
+                        order = new Order { OrderDetails = new List<OrderDetail>() };
+                    }
+                }
+            }
+
+            // If the order has a voucher code, set it in the UI
+            if (order != null && !string.IsNullOrEmpty(order.VoucherCode))
+            {
+                couponCode = order.VoucherCode;
+                // Calculate discount if voucher is applied
+                CalculateDiscountFromVoucher();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading payment data: {ex.Message}");
+            // Fall back to the original cart endpoint if needed
+            try
+            {
+                if (isAuthenticated)
+                {
+                    order = await Http.GetFromJsonAsync<Order>("https://localhost:7222/api/orders/cart");
+                }
+                else if (!string.IsNullOrEmpty(guestToken))
+                {
+                    var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7222/api/orders/cart");
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                    
+                    var response = await Http.SendAsync(request);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        order = await response.Content.ReadFromJsonAsync<Order>();
+                    }
+                    else
+                    {
+                        order = new Order { OrderDetails = new List<OrderDetail>() };
+                    }
+                }
+                else
+                {
+                    order = new Order { OrderDetails = new List<OrderDetail>() };
+                }
+            }
+            catch
+            {
+                ShowToast("Lỗi", "Không thể tải dữ liệu đơn hàng", ToastType.Error);
+                order = new Order { OrderDetails = new List<OrderDetail>() };
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApplyCoupon()
+    {
+        if (string.IsNullOrWhiteSpace(couponCode))
+        {
+            ShowToast("Lỗi", "Vui lòng nhập mã giảm giá", ToastType.Warning);
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+
+            // Create request body for applying voucher
+            var paymentRequest = new PaymentRequest
+            {
+                VoucherCode = couponCode,
+                ShippingInformationId = shippingInformationId,
+                FullName = shippingInfo.FullName,
+                PhoneNumber = shippingInfo.Phone,
+                Province = shippingInfo.Province,
+                District = shippingInfo.District,
+                Ward = shippingInfo.Ward,
+                SpecificAddress = shippingInfo.Address
+            };
+
+            HttpResponseMessage response;
+            
+            if (isAuthenticated)
+            {
+                // Call the API to apply the voucher for authenticated users
+                response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders/make-payment", paymentRequest);
+            }
+            else
+            {
+                // Create a request with the guest token for guest users
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/make-payment");
+                request.Content = JsonContent.Create(paymentRequest);
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Reload the order data to get updated pricing
+                await LoadCartData();
+                ShowToast("Thành công", "Đã áp dụng mã giảm giá", ToastType.Success);
+            }
+            else
+            {
+                var errorDetails = await response.Content.ReadAsStringAsync();
+                ShowToast("Lỗi", $"Mã giảm giá không hợp lệ hoặc đã hết hạn: {errorDetails}", ToastType.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Lỗi", $"Không thể áp dụng mã giảm giá: {ex.Message}", ToastType.Error);
+            Console.WriteLine($"Error applying voucher: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CalculateDiscountFromVoucher()
+    {
+        // This would be based on the returned order total with voucher vs original total
+        // For now, let's simulate a 10% discount if a voucher is applied
+        if (!string.IsNullOrEmpty(couponCode) && order != null)
+        {
+            // In a real application, the discount would be calculated from the API response
+            // For demo purposes, let's assume a simple percentage or fixed discount
+            if (couponCode.ToUpper().StartsWith("SALE"))
+            {
+                discountAmount = order.Total * 0.1m; // 10% discount
+            }
+            else if (couponCode.ToUpper() == "FREESHIP")
+            {
+                discountAmount = ShippingFee;
+            }
+        }
+    }
+
+    private async Task RemoveCoupon()
+    {
+        try
+        {
+            isLoading = true;
+
+            HttpResponseMessage response;
+            
+            if (isAuthenticated)
+            {
+                // Call the API to remove the voucher for authenticated users
+                response = await Http.DeleteAsync("https://localhost:7222/api/orders/transaction");
+            }
+            else
+            {
+                // Create a request with the guest token for guest users
+                var request = new HttpRequestMessage(HttpMethod.Delete, "https://localhost:7222/api/orders/transaction");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Clear voucher code and discount amount locally
+                couponCode = "";
+                discountAmount = 0;
+
+                // Reload the order data to get updated pricing
+                await LoadCartData();
+
+                ShowToast("Thông báo", "Đã hủy áp dụng mã giảm giá", ToastType.Info);
+            }
+            else
+            {
+                var errorDetails = await response.Content.ReadAsStringAsync();
+                ShowToast("Lỗi", $"Không thể hủy mã giảm giá: {errorDetails}", ToastType.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Lỗi", $"Đã xảy ra lỗi khi hủy mã giảm giá: {ex.Message}", ToastType.Error);
+            Console.WriteLine($"Error removing voucher: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task PlaceOrder()
+    {
+        // Validate form data
+        if (string.IsNullOrWhiteSpace(shippingInfo.FullName) ||
+            string.IsNullOrWhiteSpace(shippingInfo.Phone) ||
+            string.IsNullOrWhiteSpace(shippingInfo.Email) ||
+            string.IsNullOrWhiteSpace(shippingInfo.Province) ||
+            string.IsNullOrWhiteSpace(shippingInfo.District) ||
+            string.IsNullOrWhiteSpace(shippingInfo.Ward) ||
+            string.IsNullOrWhiteSpace(shippingInfo.Address))
+        {
+            ShowToast("Lỗi", "Vui lòng điền đầy đủ thông tin giao hàng", ToastType.Error);
+            return;
+        }
+
+        try {
+            isLoading = true;
+            
+            HttpResponseMessage response;
+            
+            // If payment method is VNPay
+            if (paymentMethod == "VNPay")
+            {
+                // Check if we have a valid order ID
+                if (order != null && !string.IsNullOrWhiteSpace(order.OrderId))
+                {
+                    if (isAuthenticated)
+                    {
+                        // Create payment request for authenticated users
+                        var authenticatedPaymentRequest = new PaymentRequest
+                        {
+                            VoucherCode = couponCode,
+                            ShippingInformationId = shippingInformationId,
+                            FullName = shippingInfo.FullName,
+                            PhoneNumber = shippingInfo.Phone,
+                            Province = shippingInfo.Province,
+                            District = shippingInfo.District,
+                            Ward = shippingInfo.Ward,
+                            SpecificAddress = shippingInfo.Address
+                        };
+                        
+                        // Call API to update order details for authenticated users
+                        response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders/make-payment", authenticatedPaymentRequest);
+                    }
+                    else
+                    {
+                        // Create guest payment request
+                        var guestPaymentRequest = new GuestPaymentRequest
+                        {
+                            Email = shippingInfo.Email,
+                            FullName = shippingInfo.FullName,
+                            PhoneNumber = shippingInfo.Phone,
+                            Province = shippingInfo.Province,
+                            District = shippingInfo.District,
+                            Ward = shippingInfo.Ward,
+                            SpecificAddress = shippingInfo.Address
+                        };
+                        
+                        // Create a request with the guest token
+                        var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/make-payment/guest");
+                        request.Content = JsonContent.Create(guestPaymentRequest);
+                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                        
+                        // Send the request
+                        response = await Http.SendAsync(request);
+                    }
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        // Determine the correct URL based on authentication status
+                        string vnpayUrl = isAuthenticated 
+                            ? $"https://localhost:7222/api/orders/vnpay/{order.OrderId}" 
+                            : $"https://localhost:7222/api/orders/vnpay/{order.OrderId}";
+                            
+                        // Redirect to VNPay page with existing order ID
+                        NavigationManager.NavigateTo(vnpayUrl);
+                    }
+                    else
+                    {
+                        var errorDetails = await response.Content.ReadAsStringAsync();
+                        ShowToast("Lỗi", $"Không thể thanh toán: {errorDetails}", ToastType.Error);
+                    }
+                }
+                else
+                {
+                    ShowToast("Lỗi", "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại sau.", ToastType.Error);
+                }
+            }
+            else
+            {
+                // For other payment methods, proceed with normal checkout flow
+                if (isAuthenticated)
+                {
+                    var authenticatedPaymentRequest = new PaymentRequest
+                    {
+                        VoucherCode = couponCode,
+                        ShippingInformationId = shippingInformationId,
+                        FullName = shippingInfo.FullName,
+                        PhoneNumber = shippingInfo.Phone,
+                        Province = shippingInfo.Province,
+                        District = shippingInfo.District,
+                        Ward = shippingInfo.Ward,
+                        SpecificAddress = shippingInfo.Address
+                    };
+                    
+                    response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders/make-payment", authenticatedPaymentRequest);
+                }
+                else
+                {
+                    // Create guest payment request
+                    var guestPaymentRequest = new GuestPaymentRequest
+                    {
+                        Email = shippingInfo.Email,
+                        FullName = shippingInfo.FullName,
+                        PhoneNumber = shippingInfo.Phone,
+                        Province = shippingInfo.Province,
+                        District = shippingInfo.District,
+                        Ward = shippingInfo.Ward,
+                        SpecificAddress = shippingInfo.Address
+                    };
+                    
+                    // Create a request with the guest token
+                    var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/make-payment/guest");
+                    request.Content = JsonContent.Create(guestPaymentRequest);
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                    
+                    // Send the request
+                    response = await Http.SendAsync(request);
+                }
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // For COD payment, call the COD payment endpoint
+                    if (paymentMethod == "COD" && order != null && !string.IsNullOrWhiteSpace(order.OrderId))
+                    {
+                        HttpResponseMessage codResponse;
+                        
+                        // Get the orderId from the order or parse it from the response
+                        string orderId = order.OrderId;
+                        
+                        // If the response returns updated order information, try to get the orderId
+                        try 
+                        {
+                            var updatedOrder = await response.Content.ReadFromJsonAsync<Order>();
+                            if (updatedOrder != null && !string.IsNullOrWhiteSpace(updatedOrder.OrderId))
+                            {
+                                orderId = updatedOrder.OrderId;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error reading order from response: {ex.Message}");
+                            // Continue with the existing orderId
+                        }
+                        
+                        if (isAuthenticated)
+                        {
+                            // Call the COD payment endpoint for authenticated users
+                            codResponse = await Http.PostAsync($"https://localhost:7222/api/orders/payorder-cod/{orderId}", null);
+                        }
+                        else
+                        {
+                            // Create a request with the guest token for the COD payment
+                            var codRequest = new HttpRequestMessage(HttpMethod.Post, $"https://localhost:7222/api/orders/payorder-cod/{orderId}");
+                            codRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                            
+                            // Send the request
+                            codResponse = await Http.SendAsync(codRequest);
+                        }
+                        
+                        if (codResponse.IsSuccessStatusCode)
+                        {
+                            ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công với phương thức thanh toán khi nhận hàng", ToastType.Success, true);
+                        }
+                        else
+                        {
+                            var errorDetails = await codResponse.Content.ReadAsStringAsync();
+                            ShowToast("Lỗi", $"Đặt hàng thành công nhưng không thể thiết lập thanh toán COD: {errorDetails}", ToastType.Warning);
+                        }
+                    }
+                    else
+                    {
+                        // Show success message for other payment methods
+                        ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công", ToastType.Success, true);
+                    }
+                }
+                else
+                {
+                    var errorDetails = await response.Content.ReadAsStringAsync();
+                    ShowToast("Lỗi", $"Không thể đặt hàng: {errorDetails}", ToastType.Error);
+                }
+            }
+        }
+        catch (Exception ex) {
+            ShowToast("Lỗi", $"Đã xảy ra lỗi khi đặt hàng: {ex.Message}", ToastType.Error);
+            Console.WriteLine($"Error placing order: {ex.Message}");
+        }
+        finally {
+            isLoading = false;
+        }
+    }
+
+    private async Task BackToCart()
+    {
+        try
+        {
+            isLoading = true;
+
+            HttpResponseMessage response;
+            
+            if (isAuthenticated)
+            {
+                // Call the API to clear the transaction before navigating back for authenticated users
+                response = await Http.DeleteAsync("https://localhost:7222/api/orders/transaction");
+            }
+            else
+            {
+                // Create a request with the guest token for guest users
+                var request = new HttpRequestMessage(HttpMethod.Delete, "https://localhost:7222/api/orders/transaction");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                response = await Http.SendAsync(request);
+            }
+
+            // Navigate back to cart page regardless of API result
+            NavigationManager.NavigateTo("/cart");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error clearing transaction: {ex.Message}");
+            // Still navigate back even if there's an error
+            NavigationManager.NavigateTo("/cart");
+        }
+    }
+
+    private string FormatPrice(decimal price)
+    {
+        return price.ToString("#,##0");
+    }
+
+    private void ShowToast(string title, string message, ToastType type, bool isHtml = false)
+    {
+        var toast = new ToastNotification
+        {
+            Id = Guid.NewGuid().ToString(),
+            Title = title,
+            Message = message,
+            Type = type,
+            Timestamp = DateTime.Now,
+            IsHtml = isHtml
+        };
+
+        toastNotifications.Add(toast);
+
+        // Auto-remove the toast after 5 seconds
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(5000);
+            await InvokeAsync(() =>
+            {
+                if (toastNotifications.Contains(toast))
+                {
+                    toastNotifications.Remove(toast);
+                    StateHasChanged();
+                }
+            });
+        });
+
+        StateHasChanged();
+    }
+
+    private void RemoveToast(ToastNotification toast)
+    {
+        toastNotifications.Remove(toast);
+        StateHasChanged();
+    }
+
+    // Toast notification models
+    private enum ToastType
+    {
+        Success,
+        Error,
+        Warning,
+        Info
+    }
+
+    private class ToastNotification
+    {
+        public string Id { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Message { get; set; } = "";
+        public ToastType Type { get; set; }
+        public DateTime Timestamp { get; set; }
+        public bool IsHtml { get; set; }
+
+        public string HeaderClass => Type switch
+        {
+            ToastType.Success => "bg-success text-white",
+            ToastType.Error => "bg-danger text-white",
+            ToastType.Warning => "bg-warning text-dark",
+            ToastType.Info => "bg-info text-dark",
+            _ => "bg-primary text-white"
+        };
+
+        public string Icon => Type switch
+        {
+            ToastType.Success => "bi-check-circle-fill",
+            ToastType.Error => "bi-exclamation-triangle-fill",
+            ToastType.Warning => "bi-exclamation-circle-fill",
+            ToastType.Info => "bi-info-circle-fill",
+            _ => "bi-bell-fill"
+        };
+    }
+
+    public class OrderDetail
+    {
+        public string OrderDetailId { get; set; } = "";
+        public string ProductId { get; set; } = "";
+        public decimal Price { get; set; }
+        public int Quantity { get; set; }
+        public string ImageUrl { get; set; } = "";
+        public decimal Total { get; set; }
+    }
+
+    public class Order
+    {
+        public string OrderId { get; set; } = "";
+        public string CustomerId { get; set; } = "";
+        public decimal Total { get; set; }
+        public string PaymentStatus { get; set; } = "";
+        public string OrderStatus { get; set; } = "";
+        public string VoucherCode { get; set; } = "";
+        public List<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
+    }
+
+    private class ShippingInfo
+    {
+        public string FullName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Province { get; set; } = "";
+        public string District { get; set; } = "";
+        public string Ward { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Note { get; set; } = "";
+    }
+
+    private class PaymentRequest
+    {
+
+        public string? VoucherCode { get; set; } = null;
+        public string? ShippingInformationId { get; set; }
+        public string FullName { get; set; } = "";
+        public string PhoneNumber { get; set; } = "";
+        public string Province { get; set; } = "";
+        public string District { get; set; } = "";
+        public string Ward { get; set; } = "";
+        public string SpecificAddress { get; set; } = "";
+    }
+
+    // Add model for default shipping info API response
+    private class DefaultShippingInfo
+    {
+        public string ShippingInformationId { get; set; } = "";
+        public string CustomerId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string PhoneNumber { get; set; } = "";
+        public bool IsDefault { get; set; }
+        public string SpecificAddress { get; set; } = "";
+        public string Province { get; set; } = "";
+        public string District { get; set; } = "";
+        public string Ward { get; set; } = "";
+    }
+
+    // Response model for the guest token API
+    private class GuestTokenResponse
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+
+    // Guest payment request model for the make-payment/guest endpoint
+    private class GuestPaymentRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string District { get; set; } = string.Empty;
+        public string Ward { get; set; } = string.Empty;
+        public string SpecificAddress { get; set; } = string.Empty;
+    }
+} 

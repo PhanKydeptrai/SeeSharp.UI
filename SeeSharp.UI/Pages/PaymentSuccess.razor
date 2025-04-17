@@ -1,0 +1,44 @@
+@page "/payment-success"
+@inject NavigationManager NavigationManager
+
+<PageTitle>Thanh toán thành công - Kính Thời Trang</PageTitle>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                    </div>
+                    <h2 class="mb-4">Thanh toán thành công!</h2>
+                    <p class="lead mb-4">Cảm ơn bạn đã mua sắm tại Kính Thời Trang.</p>
+                    <p class="mb-4">Chúng tôi đã gửi email xác nhận đơn hàng đến địa chỉ email của bạn. Bạn có thể theo dõi trạng thái đơn hàng trong trang "Đơn hàng của tôi".</p> 
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" @onclick="ContinueShopping">Tiếp tục mua sắm</button>
+                        <a href="/user-profile" class="btn btn-outline-secondary">Xem đơn hàng của tôi</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="mb-3">Thắc mắc về đơn hàng?</h5>
+                    <p class="mb-0">Nếu bạn có bất kỳ câu hỏi nào về đơn hàng, vui lòng liên hệ với chúng tôi qua:</p>
+                    <ul class="mb-0 mt-2">
+                        <li>Hotline: <strong>0974 753 032</strong></li>
+                        <li>Email: <strong>SeeSharp@gmail.com</strong></li>
+                        <li>Giờ làm việc: <strong>8:00 - 20:00</strong> (Thứ 2 - Chủ nhật)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void ContinueShopping()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+} 

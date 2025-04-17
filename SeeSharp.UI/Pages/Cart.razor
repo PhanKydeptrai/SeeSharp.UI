@@ -1,6 +1,9 @@
 @page "/cart"
 @using System.Net.Http.Json
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <PageTitle>Giỏ hàng - Kính Thời Trang</PageTitle>
 
@@ -110,29 +113,41 @@
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Sản phẩm (@order.OrderDetails.Count)</h5>
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash me-1"></i> Xóa tất cả
-                        </button>
                     </div>
                     <div class="card-body">
                         @foreach (var item in order.OrderDetails)
                         {
                             <div class="row cart-item mb-3 pb-3 border-bottom">
                                 <div class="col-md-2">
-                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/150" : item.ImageUrl)" class="img-fluid rounded" alt="Sản phẩm">
+                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/150" : item.ImageUrl)" class="img-fluid rounded" alt="@item.ProductName">
                                 </div>
                                 <div class="col-md-10">
                                     <div class="d-flex justify-content-between">
-                                        <h5><a href="/product/@item.ProductId" class="text-decoration-none">Sản phẩm #@item.ProductId</a></h5>
+                                        <h5><a href="/product/@item.ProductId" class="text-decoration-none">@item.ProductName</a></h5>
                                         <button class="btn btn-sm btn-link text-danger" @onclick="() => RemoveFromCart(item.OrderDetailId)">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </div>
+                                    <p class="text-muted mb-2">
+                                        @if (!string.IsNullOrEmpty(item.VariantName))
+                                        {
+                                            <span class="me-2">Variant: @item.VariantName</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.ColorCode))
+                                        {
+                                            <span class="d-inline-flex align-items-center me-2">
+                                                Color: 
+                                                <span class="ms-1" style="width: 15px; height: 15px; border-radius: 50%; background-color: @item.ColorCode; display: inline-block;"></span>
+                                            </span>
+                                        }
+                                    </p>
                                     <p class="text-muted mb-1">SKU: @item.OrderDetailId.Substring(0, 8) | Mã SP: @item.ProductId.Substring(0, 8)</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div class="input-group" style="width: 120px;">
                                             <button class="btn btn-outline-secondary" type="button" @onclick="() => UpdateQuantity(item.OrderDetailId, item.Quantity - 1)">-</button>
-                                            <input type="text" class="form-control text-center" value="@item.Quantity">
+                                            <input type="text" class="form-control text-center" value="@item.Quantity" 
+                                                   @onchange="(e) => HandleQuantityInput(item.OrderDetailId, e)" 
+                                                   @onkeypress="(e) => HandleQuantityKeyPress(e, item.OrderDetailId, item.Quantity)">
                                             <button class="btn btn-outline-secondary" type="button" @onclick="() => UpdateQuantity(item.OrderDetailId, item.Quantity + 1)">+</button>
                                         </div>
                                         <div class="text-end">
@@ -178,13 +193,13 @@
                         </div>
 
                         <!-- Coupon Code -->
-                        <div class="mb-3">
+                        @* <div class="mb-3">
                             <label for="couponCode" class="form-label">Mã giảm giá</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="couponCode" placeholder="Nhập mã giảm giá">
                                 <button class="btn btn-outline-secondary" type="button">Áp dụng</button>
                             </div>
-                        </div>
+                        </div> *@
 
                         <div class="alert alert-info">
                             <div class="d-flex">
@@ -211,31 +226,6 @@
                     </div>
                 </div>
 
-                <!-- Shipping Estimate -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Ước tính vận chuyển</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="province" class="form-label">Tỉnh/Thành phố</label>
-                            <select class="form-select" id="province">
-                                <option selected>Chọn tỉnh/thành phố</option>
-                                <option value="hanoi">Hà Nội</option>
-                                <option value="hcm">TP. Hồ Chí Minh</option>
-                                <option value="danang">Đà Nẵng</option>
-                                <option value="other">Tỉnh/Thành phố khác</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="district" class="form-label">Quận/Huyện</label>
-                            <select class="form-select" id="district">
-                                <option selected>Chọn quận/huyện</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-outline-secondary w-100">Tính phí vận chuyển</button>
-                    </div>
-                </div>
             </div>
         </div>
     }
@@ -269,9 +259,43 @@
     private Order? order;
     private decimal ShippingFee => order?.Total >= 1000000 ? 0 : 30000;
     private List<ToastNotification> toastNotifications = new List<ToastNotification>();
+    private bool isAuthenticated = false;
+    private string? guestToken;
 
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication state
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+        
+        if (!isAuthenticated)
+        {
+            // Get guest token from localStorage
+            guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+            
+            // If no guest token exists, get a new one
+            if (string.IsNullOrEmpty(guestToken))
+            {
+                try
+                {
+                    // Call the guest token endpoint
+                    var tokenResponse = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                    
+                    if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.Token))
+                    {
+                        // Store the guest token in localStorage
+                        await LocalStorage.SetItemAsStringAsync("guestToken", tokenResponse.Token);
+                        guestToken = tokenResponse.Token;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error getting guest token: {ex.Message}");
+                    ShowToast("Lỗi", "Không thể tạo phiên mua sắm khách. Vui lòng thử lại sau.", ToastType.Error);
+                }
+            }
+        }
+        
         await LoadCartData();
     }
 
@@ -280,7 +304,38 @@
         try
         {
             isLoading = true;
-            order = await Http.GetFromJsonAsync<Order>("https://localhost:7222/api/orders/cart");
+            
+            if (isAuthenticated)
+            {
+                // Regular authenticated user request
+                order = await Http.GetFromJsonAsync<Order>("https://localhost:7222/api/orders/cart");
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(guestToken))
+                {
+                    // If no guest token, show empty cart
+                    order = new Order { OrderDetails = new List<OrderDetail>() };
+                    return;
+                }
+                
+                // Create a request with the guest token
+                var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7222/api/orders/cart");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                var response = await Http.SendAsync(request);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    order = await response.Content.ReadFromJsonAsync<Order>();
+                }
+                else
+                {
+                    Console.WriteLine($"Error loading guest cart: {response.StatusCode}");
+                    order = new Order { OrderDetails = new List<OrderDetail>() };
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -297,7 +352,22 @@
     {
         try 
         {
-            var response = await Http.DeleteAsync($"https://localhost:7222/api/orders/details/{orderDetailId}");
+            HttpResponseMessage response;
+            
+            if (isAuthenticated)
+            {
+                // Regular authenticated user request
+                response = await Http.DeleteAsync($"https://localhost:7222/api/orders/details/{orderDetailId}");
+            }
+            else
+            {
+                // Create a request with the guest token
+                var request = new HttpRequestMessage(HttpMethod.Delete, $"https://localhost:7222/api/orders/details/{orderDetailId}");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                response = await Http.SendAsync(request);
+            }
             
             if (response.IsSuccessStatusCode)
             {
@@ -348,8 +418,23 @@
                 Quantity = newQuantity
             };
             
-            // Call the API to update the quantity
-            var response = await Http.PutAsJsonAsync($"https://localhost:7222/api/orders/details/{orderDetailId}", updateRequest);
+            HttpResponseMessage response;
+            
+            if (isAuthenticated)
+            {
+                // Regular authenticated user request
+                response = await Http.PutAsJsonAsync($"https://localhost:7222/api/orders/details/{orderDetailId}", updateRequest);
+            }
+            else
+            {
+                // Create a request with the guest token
+                var request = new HttpRequestMessage(HttpMethod.Put, $"https://localhost:7222/api/orders/details/{orderDetailId}");
+                request.Content = JsonContent.Create(updateRequest);
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send the request
+                response = await Http.SendAsync(request);
+            }
             
             if (response.IsSuccessStatusCode)
             {
@@ -395,7 +480,8 @@
 
     private void Checkout()
     {
-        // In a real app, this would navigate to the checkout page
+        // Navigate to checkout page
+        NavigationManager.NavigateTo("/checkout");
     }
 
     private string FormatPrice(decimal price)
@@ -480,6 +566,9 @@
     {
         public string OrderDetailId { get; set; } = "";
         public string ProductId { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public string VariantName { get; set; } = "";
+        public string ColorCode { get; set; } = "";
         public decimal Price { get; set; }
         public int Quantity { get; set; }
         public string ImageUrl { get; set; } = "";
@@ -499,5 +588,31 @@
     private class UpdateQuantityRequest
     {
         public int Quantity { get; set; }
+    }
+
+    private async Task HandleQuantityInput(string orderDetailId, ChangeEventArgs e)
+    {
+        if (e.Value != null && int.TryParse(e.Value.ToString(), out int newQuantity))
+        {
+            if (newQuantity > 0)
+            {
+                await UpdateQuantity(orderDetailId, newQuantity);
+            }
+        }
+    }
+
+    private async Task HandleQuantityKeyPress(KeyboardEventArgs e, string orderDetailId, int currentQuantity)
+    {
+        if (e.Key == "Enter")
+        {
+            // The actual update will be handled by HandleQuantityInput
+            // This is just to trigger the update on Enter key
+        }
+    }
+
+    // Response model for the guest token API
+    private class GuestTokenResponse
+    {
+        public string Token { get; set; } = string.Empty;
     }
 } 

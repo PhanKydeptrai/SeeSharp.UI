@@ -1,0 +1,64 @@
+@page "/payment-failed"
+@inject NavigationManager NavigationManager
+
+<PageTitle>Thanh toán thất bại - Kính Thời Trang</PageTitle>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="bi bi-x-circle-fill text-danger" style="font-size: 5rem;"></i>
+                    </div>
+                    <h2 class="mb-4">Thanh toán thất bại!</h2>
+                    <p class="lead mb-4">Rất tiếc, giao dịch của bạn không thể hoàn tất.</p>
+                    <p class="mb-4">Có thể có lỗi xảy ra trong quá trình thanh toán hoặc thông tin thẻ của bạn không hợp lệ. Vui lòng kiểm tra và thử lại.</p>
+                    
+                    <div class="alert alert-light border text-start mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                            <h5 class="mb-0">Lý do có thể xảy ra</h5>
+                        </div>
+                        <ul class="mb-0">
+                            <li>Thẻ của bạn không đủ số dư</li>
+                            <li>Thông tin thẻ không chính xác</li>
+                            <li>Ngân hàng từ chối giao dịch</li>
+                            <li>Kết nối internet không ổn định</li>
+                            <li>Lỗi hệ thống thanh toán</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" @onclick="TryAgain">Thử lại</button>
+                        <button class="btn btn-outline-secondary" @onclick="BackToCart">Quay lại giỏ hàng</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="mb-3">Cần hỗ trợ?</h5>
+                    <p class="mb-0">Nếu bạn gặp vấn đề trong quá trình thanh toán, vui lòng liên hệ với chúng tôi qua:</p>
+                    <ul class="mb-0 mt-2">
+                        <li>Hotline: <strong>0974 753 032</strong></li>
+                        <li>Email: <strong>SeeSharp@gmail.com</strong></li>
+                        <li>Giờ làm việc: <strong>8:00 - 20:00</strong> (Thứ 2 - Chủ nhật)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void TryAgain()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+    
+    private void BackToCart()
+    {
+        NavigationManager.NavigateTo("/cart");
+    }
+} 
