@@ -10,7 +10,7 @@
     <div class="col-md-3">
         <a class="navbar-brand fs-3 fw-bold text-primary text-decoration-none" href="/">Gọng Kính SeeSharp</a>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-5">
         <div class="input-group">
             <input type="text" class="form-control" placeholder="Tìm kiếm sản phẩm..." @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleKeyPress">
             <button class="btn btn-primary" type="button" @onclick="Search">
@@ -18,8 +18,12 @@
             </button>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="d-flex justify-content-end">
+            <a href="/order-lookup" class="btn btn-outline-primary me-3 d-flex align-items-center">
+                <i class="bi bi-box-seam me-2"></i>
+                <span>Tra cứu đơn hàng</span>
+            </a>
             <div class="dropdown me-3">
                 <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
                     <i class="bi bi-person fs-4"></i>
@@ -31,11 +35,13 @@
                             <li><button class="dropdown-item" @onclick="Logout">Đăng xuất</button></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/userprofile">Tài khoản của tôi</a></li>
-                            <li><a class="dropdown-item" href="#">Đơn hàng</a></li>
+                            <li><a class="dropdown-item" href="/order-lookup">Tra cứu đơn hàng</a></li>
                         </Authorized>
                         <NotAuthorized>
                             <li><a class="dropdown-item" href="/login">Đăng nhập</a></li>
                             <li><a class="dropdown-item" href="/register">Đăng ký</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/order-lookup">Tra cứu đơn hàng</a></li>
                         </NotAuthorized>    
                     </AuthorizeView>
                 </ul>

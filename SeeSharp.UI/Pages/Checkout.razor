@@ -816,18 +816,82 @@
                         
                         if (codResponse.IsSuccessStatusCode)
                         {
-                            ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công với phương thức thanh toán khi nhận hàng", ToastType.Success, true);
+                            // Get the response from the API
+                            var paymentResponse = await codResponse.Content.ReadFromJsonAsync<string>();
+                            
+                            if (paymentResponse != null)
+                            {
+                                
+                                
+                                ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công với phương thức thanh toán khi nhận hàng", ToastType.Success, true);
+                                NavigationManager.NavigateTo($"/payment-success/{paymentResponse}");
+                                
+                            }
+                            else
+                            {
+                                // Fallback if we couldn't parse the response
+                                ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công với phương thức thanh toán khi nhận hàng", ToastType.Success, true);
+                                NavigationManager.NavigateTo($"/payment-success/{paymentResponse}");
+                            }
                         }
                         else
                         {
-                            var errorDetails = await codResponse.Content.ReadAsStringAsync();
-                            ShowToast("Lỗi", $"Đặt hàng thành công nhưng không thể thiết lập thanh toán COD: {errorDetails}", ToastType.Warning);
+                            // Try to read error response
+                            try
+                            {
+                                var errorResponse = await codResponse.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                                
+                                if (errorResponse != null)
+                                {
+                                    // Extract the order ID from the error response if available
+                                    string responseOrderId = !string.IsNullOrEmpty(errorResponse.OrderId) 
+                                        ? errorResponse.OrderId 
+                                        : orderId;
+                                        
+                                    if (!string.IsNullOrEmpty(errorResponse.ErrorUrl))
+                                    {
+                                        // Use the provided error URL if available
+                                        NavigationManager.NavigateTo(errorResponse.ErrorUrl);
+                                    }
+                                    else
+                                    {
+                                        // Redirect to payment failed page with the order ID from the response
+                                        ShowToast("Lỗi", $"Không thể thiết lập thanh toán COD: {errorResponse.Message}", ToastType.Error);
+                                        NavigationManager.NavigateTo($"/payment-failed/{responseOrderId}");
+                                    }
+                                }
+                                else
+                                {
+                                    // Fallback if we couldn't parse the error response
+                                    var errorDetails = await codResponse.Content.ReadAsStringAsync();
+                                    ShowToast("Lỗi", $"Không thể thiết lập thanh toán COD: {errorDetails}", ToastType.Error);
+                                    NavigationManager.NavigateTo($"/payment-failed/{orderId}");
+                                }
+                            }
+                            catch
+                            {
+                                // Fallback if we encounter an exception parsing the response
+                                var errorDetails = await codResponse.Content.ReadAsStringAsync();
+                                ShowToast("Lỗi", $"Không thể thiết lập thanh toán COD: {errorDetails}", ToastType.Error);
+                                NavigationManager.NavigateTo($"/payment-failed/{orderId}");
+                            }
                         }
                     }
                     else
                     {
-                        // Show success message for other payment methods
-                        ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công", ToastType.Success, true);
+                        // For other payment methods, get response for redirect URL
+                        var redirectUrl = await response.Content.ReadFromJsonAsync<string>();
+                        if (!string.IsNullOrEmpty(redirectUrl))
+                        {
+                            NavigationManager.NavigateTo(redirectUrl);
+                        }
+                        else
+                        {
+                            // Show success message and navigate to success page
+                            
+                            ShowToast("Đặt hàng thành công", "Đơn hàng của bạn đã được đặt thành công", ToastType.Success, true);
+                            NavigationManager.NavigateTo($"/payment-success/{redirectUrl}");
+                        }
                     }
                 }
                 else
@@ -1035,5 +1099,22 @@
         public string District { get; set; } = string.Empty;
         public string Ward { get; set; } = string.Empty;
         public string SpecificAddress { get; set; } = string.Empty;
+    }
+
+    // Add these new classes for handling API responses
+    private class PaymentResponseDto
+    {
+        public string RedirectUrl { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string OrderId { get; set; } = string.Empty;
+    }
+
+    private class ErrorResponseDto
+    {
+        public string ErrorUrl { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string OrderId { get; set; } = string.Empty;
     }
 } 

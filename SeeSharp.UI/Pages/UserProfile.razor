@@ -540,7 +540,7 @@
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th style="width: 40%;">Product</th>
+                                    <th style="width: 50%;">Product</th>
                                     <th>Price</th>
                                     <th>Quantity</th>
                                     <th>Total</th>
@@ -551,25 +551,35 @@
                                 {
                                     <tr>
                                         <td>
-                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                            {
-                                                <img src="@item.ImageUrl" alt="Product" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;" />
-                                            }
-                                            <div>
-                                                <span class="fw-bold">@item.ProductName</span>
-                                                @if (!string.IsNullOrEmpty(item.VariantName))
+                                            <div class="d-flex align-items-center">
+                                                @if (!string.IsNullOrEmpty(item.ImageUrl))
                                                 {
-                                                    <br />
-                                                    <small class="text-muted">Variant: @item.VariantName</small>
+                                                    <img src="@item.ImageUrl" alt="@item.ProductName" 
+                                                        class="img-thumbnail me-3" 
+                                                        style="width: 60px; height: 60px; object-fit: cover;" />
                                                 }
-                                                @if (!string.IsNullOrEmpty(item.ColorCode))
+                                                else
                                                 {
-                                                    <br />
-                                                    <small class="text-muted d-flex align-items-center">
-                                                        Color: 
-                                                        <span class="color-preview ms-1" style="width: 15px; height: 15px; border-radius: 50%; background-color: @item.ColorCode; display: inline-block; margin-right: 5px;"></span>
-                                                    </small>
+                                                    <div class="bg-light d-flex align-items-center justify-content-center me-3"
+                                                        style="width: 60px; height: 60px; border-radius: 4px;">
+                                                        <i class="bi bi-image text-secondary" style="font-size: 1.5rem;"></i>
+                                                    </div>
                                                 }
+                                                <div>
+                                                    <div class="fw-bold">@item.ProductName</div>
+                                                    @if (!string.IsNullOrEmpty(item.VariantName))
+                                                    {
+                                                        <small class="text-muted d-block">Variant: @item.VariantName</small>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(item.ColorCode))
+                                                    {
+                                                        <small class="text-muted d-flex align-items-center">
+                                                            Color: 
+                                                            <span class="color-preview ms-1" 
+                                                                style="width: 15px; height: 15px; border-radius: 50%; background-color: @item.ColorCode; display: inline-block;"></span>
+                                                        </small>
+                                                    }
+                                                </div>
                                             </div>
                                         </td>
                                         <td>@FormatCurrency(item.Price)</td>
