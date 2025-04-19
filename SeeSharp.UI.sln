@@ -4,6 +4,8 @@ VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SeeSharp.UI", "SeeSharp.UI\SeeSharp.UI.csproj", "{9B00CD91-D255-4F18-9290-8E9A6A2A2CD1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SeeSharp.Admin", "SeeSharp.Admin\SeeSharp.Admin.csproj", "{C36575C8-38E7-428E-8D65-AE02EA4A3E2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{9B00CD91-D255-4F18-9290-8E9A6A2A2CD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9B00CD91-D255-4F18-9290-8E9A6A2A2CD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9B00CD91-D255-4F18-9290-8E9A6A2A2CD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C36575C8-38E7-428E-8D65-AE02EA4A3E2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C36575C8-38E7-428E-8D65-AE02EA4A3E2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C36575C8-38E7-428E-8D65-AE02EA4A3E2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C36575C8-38E7-428E-8D65-AE02EA4A3E2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

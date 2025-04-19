@@ -3,6 +3,7 @@
 @using SeeSharp.UI.Models
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
 @using System.ComponentModel.DataAnnotations
 @using System.Net.Http.Json
 @using System.ComponentModel
@@ -477,6 +478,13 @@
                                                                 @onclick="() => ViewOrderDetails(order.OrderId)">
                                                                 Details
                                                             </button>
+                                                            @if (!string.IsNullOrEmpty(order.BillId))
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-primary ms-1"
+                                                                    @onclick="() => ExportBill(order.BillId)">
+                                                                    <i class="bi bi-file-earmark-text me-1"></i>Export Bill
+                                                                </button>
+                                                            }
                                                         </td>
                                                     </tr>
                                                 }
@@ -599,6 +607,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseOrderDetailsModal">Close</button>
+                    @if (selectedOrderDetails != null && !string.IsNullOrEmpty(selectedOrderDetails.BillId))
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="() => ExportBill(selectedOrderDetails.BillId)">
+                            <i class="bi bi-file-earmark-text me-1"></i>Export Bill
+                        </button>
+                    }
                     @if (selectedOrderDetails != null && 
                          selectedOrderDetails.PaymentStatus.ToLower() != "cancelled" && 
                          selectedOrderDetails.PaymentStatus.ToLower() != "completed" &&
@@ -1299,5 +1313,14 @@
             orderIdBeingCancelled = string.Empty;
             orderIdToCancel = string.Empty;
         }
+    }
+
+    private void ExportBill(string billId)
+    {
+        if (string.IsNullOrEmpty(billId)) return;
+        
+        // Open the bill in a new tab/window
+        string billUrl = $"https://localhost:7222/api/bills/{billId}";
+        JSRuntime.InvokeVoidAsync("open", billUrl, "_blank");
     }
 }

@@ -1,0 +1,590 @@
+@page "/employees/add"
+@page "/employees/edit/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@using System.Net.Http
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text.Json
+@attribute [Authorize]
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@PageTitle - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <a href="/employees" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h1 class="page-title mb-0">
+                        <i class="bi bi-@(Id != null ? "pencil-square" : "plus-circle") me-2"></i>@PageTitle
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        @if (showToast)
+                        {
+                            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                                <div class="toast show toast-custom @(isToastVisible ? "toast-visible" : "toast-hidden")" role="alert" aria-live="assertive" aria-atomic="true">
+                                    <div class="toast-header @toastHeaderClass">
+                                        <i class="bi @toastIcon me-2"></i>
+                                        <strong class="me-auto">@toastTitle</strong>
+                                        <small>just now</small>
+                                        <button type="button" class="btn-close" @onclick="CloseToast"></button>
+                                    </div>
+                                    <div class="toast-body">
+                                        @toastMessage
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (apiValidationErrors.Count > 0)
+                        {
+                            <div class="alert alert-danger mb-4">
+                                <h5 class="alert-heading">Validation Error</h5>
+                                <ul class="mb-0 mt-2">
+                                    @foreach (var error in apiValidationErrors)
+                                    {
+                                        <li>@error</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+
+                        <EditForm EditContext="@editContext" OnValidSubmit="HandleValidSubmit" enctype="multipart/form-data">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="row mb-4">
+                                <div class="col-md-4 offset-md-4 text-center">
+                                    <div class="employee-avatar-large mx-auto mb-3" style="@(selectedImageUrl != null ? $"background-image: url('{selectedImageUrl}')" : "")"></div>
+                                    <InputFile OnChange="OnFileChange" accept=".jpg,.jpeg,.png" id="fileInput" class="d-none" />
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="BrowseFiles">
+                                        <i class="bi bi-upload me-1"></i>Upload Photo
+                                    </button>
+                                    @if (selectedImageUrl != null)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm ms-2" @onclick="ClearSelectedImage">
+                                            <i class="bi bi-x-circle me-1"></i>Clear
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            <h5 class="border-bottom pb-2 mb-4">Basic Information</h5>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label for="userName" class="form-label">User Name</label>
+                                    <InputText id="userName" @bind-Value="employee.UserName" class="form-control" />
+                                    <ValidationMessage For="@(() => employee.UserName)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dateOfBirth" class="form-label">Date of Birth <span class="text-muted">(Must be at least 18 years old)</span></label>
+                                    <InputDate id="dateOfBirth" @bind-Value="employee.DateOfBirth" class="form-control" @onchange="ValidateDateOfBirth" />
+                                    <ValidationMessage For="@(() => employee.DateOfBirth)" />
+                                    @if (dateOfBirthError)
+                                    {
+                                        <div class="invalid-feedback d-block">You must be at least 18 years old.</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="role" class="form-label">Role</label>
+                                    <InputSelect id="role" @bind-Value="employee.Role" class="form-select">
+                                        <option value="">-- Select Role --</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="Manager">Manager</option>
+                                        <option value="Staff">Staff</option>
+                                        <option value="HR">HR</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => employee.Role)" />
+                                </div>
+                            </div>
+
+                            <h5 class="border-bottom pb-2 mb-4">Contact Information</h5>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Email</label>
+                                    <InputText id="email" @bind-Value="employee.Email" class="form-control" />
+                                    <ValidationMessage For="@(() => employee.Email)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <InputText id="phoneNumber" @bind-Value="employee.PhoneNumber" class="form-control" @oninput="ValidatePhoneNumber" />
+                                    <ValidationMessage For="@(() => employee.PhoneNumber)" />
+                                    @if (phoneNumberError)
+                                    {
+                                        <div class="invalid-feedback d-block">Phone number must be in the format 0XXXXXXXXX (10 digits starting with 0).</div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-4">
+                                <a href="/employees" class="btn btn-outline-secondary me-2">Cancel</a>
+                                <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || phoneNumberError || dateOfBirthError)">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Processing...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save Employee</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .employee-avatar-large {
+        width: 120px;
+        height: 120px;
+        background-color: #f0f0f0;
+        border-radius: 50%;
+        background-image: url('https://via.placeholder.com/120');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .form-label {
+        font-weight: 500;
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    .toast-container {
+        z-index: 1050;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+    
+    .bg-danger-light {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+    
+    .toast-custom {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        min-width: 300px;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    
+    .toast-hidden {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .toast-visible {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-header {
+        border-bottom: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    private EmployeeModel employee = new EmployeeModel();
+    private EditContext? editContext;
+    private string PageTitle => Id != null ? "Edit Employee" : "Add Employee";
+    private IBrowserFile? selectedFile;
+    private string? selectedImageUrl;
+    private bool isSubmitting = false;
+    private bool phoneNumberError = false;
+    private bool dateOfBirthError = false;
+    private List<string> apiValidationErrors = new List<string>();
+    
+    // Toast notification properties
+    private bool showToast = false;
+    private bool isToastVisible = false;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private string toastHeaderClass = "";
+    private string toastIcon = "";
+    private System.Threading.Timer? toastTimer;
+
+    protected override void OnInitialized()
+    {
+        // Create EditContext for the form
+        editContext = new EditContext(employee);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(Id))
+        {
+            // Here you would load the employee data based on the Id from API
+            try 
+            {
+                var response = await HttpClient.GetFromJsonAsync<EmployeeDto>($"https://localhost:7222/api/employees/{Id}");
+                if (response != null)
+                {
+                    employee.UserName = response.UserName;
+                    employee.Email = response.Email;
+                    employee.PhoneNumber = response.PhoneNumber;
+                    employee.DateOfBirth = response.DateOfBirth;
+                    employee.Role = response.Role;
+                    
+                    if (!string.IsNullOrEmpty(response.ImageUrl))
+                    {
+                        selectedImageUrl = response.ImageUrl;
+                    }
+                    
+                    // Update EditContext after loading data
+                    editContext = new EditContext(employee);
+                }
+                
+                // Validate loaded data
+                ValidatePhoneNumber();
+                ValidateDateOfBirth();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading employee: {ex.Message}");
+                ShowErrorToast("Error", "Failed to load employee data. Please try again.");
+            }
+        }
+        else
+        {
+            // Initialize with defaults for a new employee
+            employee.Role = "Staff";
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (phoneNumberError || dateOfBirthError)
+        {
+            return; // Don't proceed if there are validation errors
+        }
+        
+        apiValidationErrors.Clear();
+        isSubmitting = true;
+        
+        try
+        {
+            var content = new MultipartFormDataContent();
+            
+            // Add text fields
+            content.Add(new StringContent(employee.UserName), "userName");
+            content.Add(new StringContent(employee.Email), "email");
+            content.Add(new StringContent(employee.PhoneNumber), "phoneNumber");
+            
+            if (employee.DateOfBirth.HasValue)
+            {
+                content.Add(new StringContent(employee.DateOfBirth.Value.ToString("yyyy-MM-dd")), "dateOfBirth");
+            }
+            
+            content.Add(new StringContent(employee.Role), "role");
+            
+            // Add image if selected
+            if (selectedFile != null)
+            {
+                var fileContent = new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 4 * 1024 * 1024)); // 4MB max
+                content.Add(fileContent, "imageFile", selectedFile.Name);
+            }
+            
+            HttpResponseMessage response;
+            
+            if (string.IsNullOrEmpty(Id))
+            {
+                // Create new employee
+                response = await HttpClient.PostAsync("https://localhost:7222/api/employees", content);
+            }
+            else
+            {
+                // Update existing employee
+                response = await HttpClient.PutAsync($"https://localhost:7222/api/employees/{Id}", content);
+            }
+            
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/employees");
+            }
+            else
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    try
+                    {
+                        // Try to parse validation errors from API response
+                        var validationError = JsonSerializer.Deserialize<ValidationErrorResponse>(responseContent, 
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        
+                        if (validationError?.Errors != null && validationError.Errors.Count > 0)
+                        {
+                            foreach (var error in validationError.Errors)
+                            {
+                                apiValidationErrors.Add(error.Description);
+                                
+                                // Add specific handling for known error codes
+                                if (error.Code == "PhoneNumber.Invalid")
+                                {
+                                    phoneNumberError = true;
+                                }
+                                else if (error.Code == "DateOfBirth.AgeRestriction")
+                                {
+                                    dateOfBirthError = true;
+                                }
+                            }
+                            
+                            // Force re-render to show the errors
+                            StateHasChanged();
+                        }
+                        else
+                        {
+                            ShowErrorToast("Error", $"Failed to save employee: {responseContent}");
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // Not a valid JSON response
+                        ShowErrorToast("Error", $"Failed to save employee: {responseContent}");
+                    }
+                }
+                else
+                {
+                    ShowErrorToast("Error", $"Failed to save employee: {responseContent}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", $"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+    
+    private void ValidatePhoneNumber()
+    {
+        // Vietnamese phone number validation (10 digits starting with 0)
+        string phonePattern = @"^0\d{9}$";
+        phoneNumberError = !string.IsNullOrEmpty(employee.PhoneNumber) && 
+                           !System.Text.RegularExpressions.Regex.IsMatch(employee.PhoneNumber, phonePattern);
+    }
+    
+    private void ValidateDateOfBirth()
+    {
+        if (employee.DateOfBirth.HasValue)
+        {
+            // Check if the person is at least 18 years old
+            var today = DateTime.Today;
+            var age = today.Year - employee.DateOfBirth.Value.Year;
+            
+            // Adjust age if birthday hasn't occurred yet this year
+            if (employee.DateOfBirth.Value.Date > today.AddYears(-age))
+            {
+                age--;
+            }
+            
+            dateOfBirthError = age < 18;
+        }
+        else
+        {
+            dateOfBirthError = false;
+        }
+    }
+    
+    private async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        
+        try
+        {
+            // Create a temporary URL for the selected image for preview
+            var buffer = new byte[selectedFile.Size];
+            await selectedFile.OpenReadStream(maxAllowedSize: 4 * 1024 * 1024).ReadAsync(buffer); // 4MB max
+            selectedImageUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing file: {ex.Message}");
+            ShowErrorToast("Error", "Failed to process the selected image.");
+        }
+    }
+    
+    private async Task BrowseFiles()
+    {
+        await JSRuntime.InvokeVoidAsync("document.getElementById('fileInput').click");
+    }
+    
+    private void ClearSelectedImage()
+    {
+        selectedFile = null;
+        selectedImageUrl = null;
+    }
+    
+    private async Task ShowWithAnimation()
+    {
+        toastTimer?.Dispose();
+        showToast = true;
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(50);
+        
+        isToastVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void ShowSuccessToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-success-light";
+        toastIcon = "bi-check-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private void ShowErrorToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-danger-light";
+        toastIcon = "bi-exclamation-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private async Task CloseToast()
+    {
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(300);
+        
+        showToast = false;
+        toastTimer?.Dispose();
+        toastTimer = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void SetupToastAutoHide()
+    {
+        toastTimer?.Dispose();
+        
+        toastTimer = new System.Threading.Timer(async _ => 
+        {
+            await CloseToast();
+        }, null, 5000, System.Threading.Timeout.Infinite);
+    }
+
+    public class EmployeeModel
+    {
+        [Required(ErrorMessage = "Username is required")]
+        [StringLength(50, ErrorMessage = "Username cannot exceed 50 characters")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone number is required")]
+        [Phone(ErrorMessage = "Please enter a valid phone number")]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        public DateTime? DateOfBirth { get; set; }
+        
+        [Required(ErrorMessage = "Role is required")]
+        public string Role { get; set; } = string.Empty;
+    }
+    
+    public class EmployeeDto
+    {
+        public string UserId { get; set; }
+        public string UserName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string ImageUrl { get; set; }
+        public string PhoneNumber { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
+        public string UserStatus { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+    
+    public class ValidationErrorResponse
+    {
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public int Status { get; set; }
+        public string Detail { get; set; }
+        public string Instance { get; set; }
+        public string TraceId { get; set; }
+        public string RequestId { get; set; }
+        public List<ValidationError> Errors { get; set; } = new List<ValidationError>();
+    }
+    
+    public class ValidationError
+    {
+        public string Code { get; set; }
+        public string Description { get; set; }
+        public int Type { get; set; }
+    }
+} 

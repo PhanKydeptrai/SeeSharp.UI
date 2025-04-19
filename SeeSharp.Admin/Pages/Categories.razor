@@ -1,0 +1,661 @@
+@page "/categories"
+@using Microsoft.AspNetCore.Authorization
+@using SeeSharp.Admin.Services
+@using System.Net.Http
+@using Microsoft.AspNetCore.Components.Web
+@attribute [Authorize]
+@inject CategoryService CategoryService
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Categories - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="page-title">
+                        <i class="bi bi-folder me-2"></i>Categories
+                    </h1>
+                    <button class="btn btn-primary" @onclick="NavigateToAddCategory">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Category
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="input-group search-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" placeholder="Search categories..." @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUp">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                {
+                                    <span class="input-group-text clear-search-btn" @onclick="ClearSearch">
+                                        <i class="bi bi-x-circle"></i>
+                                    </span>
+                                }
+                                <button class="btn btn-outline-primary" type="button" @onclick="SearchCategories">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" @onchange="OnStatusSelected">
+                                    <option value="">Status: All</option>
+                                    <option value="Active">Status: Active</option>
+                                    <option value="Inactive">Status: Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        @if (isLoading)
+                        {
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading categories...</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>ID</th>
+                                            <th>Category Name</th>
+                                            <th>Default</th>
+                                            <th>Description</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var category in FilteredCategories)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="category-image-small" style="@(string.IsNullOrEmpty(category.ImageUrl) ? "" : $"background-image: url('{category.ImageUrl}')")"></div>
+                                                </td>
+                                                <td>@category.Id</td>
+                                                <td class="fw-medium">@category.Name</td>
+                                                <td>
+                                                    @if (category.IsDefault)
+                                                    {
+                                                        <span class="badge bg-info">Default</span>
+                                                    }
+                                                </td>
+                                                <td>@category.Description</td>
+                                                <td>
+                                                    <span class="badge @(category.IsActive ? "bg-success" : "bg-danger")">
+                                                        @(category.IsActive ? "Active" : "Inactive")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="action-buttons">
+                                                        <button class="btn btn-sm btn-outline-primary" title="Edit" @onclick="() => NavigateToEditCategory(category.Id)">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        @if (category.IsActive)
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger" title="Delete" @onclick="() => DeleteCategory(category)">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success" title="Restore" @onclick="() => RestoreCategory(category)">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            @if (!CategoryList.Any())
+                            {
+                                <div class="text-center py-4">
+                                    <div class="mb-3">
+                                        <i class="bi bi-folder-x" style="font-size: 2rem; color: #ccc;"></i>
+                                    </div>
+                                    <h5>No categories found</h5>
+                                    <p class="text-muted">Click "Add New Category" to create your first category.</p>
+                                </div>
+                            }
+
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <div class="text-muted">
+                                    Showing @(FilteredCategories.Count() > 0 ? (currentPage - 1) * pageSize + 1 : 0) to @Math.Min(currentPage * pageSize, totalCount) of @totalCount categories
+                                </div>
+                                @if (TotalPages > 1)
+                                {
+                                    <nav aria-label="Category pagination">
+                                        <ul class="pagination mb-0">
+                                            <li class="page-item @(hasPreviousPage ? "" : "disabled")">
+                                                <a class="page-link" href="javascript:void(0)" @onclick="PreviousPage" tabindex="@(hasPreviousPage ? "0" : "-1")" aria-disabled="@(!hasPreviousPage)">Previous</a>
+                                            </li>
+                                            @for (int i = 1; i <= TotalPages; i++)
+                                            {
+                                                var pageNumber = i;
+                                                <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                                    <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(pageNumber)">@pageNumber</a>
+                                                </li>
+                                            }
+                                            <li class="page-item @(hasNextPage ? "" : "disabled")">
+                                                <a class="page-link" href="javascript:void(0)" @onclick="NextPage">Next</a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (showDeleteConfirmation)
+    {
+        <div class="modal fade show" style="display: block;" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="() => showDeleteConfirmation = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete the category: <strong>@categoryToDelete?.Name</strong>?</p>
+                        <p class="text-danger">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="() => showDeleteConfirmation = false">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteCategory">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    @if (showRestoreConfirmation)
+    {
+        <div class="modal fade show" style="display: block;" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Restore</h5>
+                        <button type="button" class="btn-close" @onclick="() => showRestoreConfirmation = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to restore the category: <strong>@categoryToRestore?.Name</strong>?</p>
+                        <p>This will make the category active again.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="() => showRestoreConfirmation = false">Cancel</button>
+                        <button type="button" class="btn btn-success" @onclick="ConfirmRestoreCategory">Restore</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    <!-- Toast Notifications -->
+    @if (showToast)
+    {
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast show toast-custom @(isToastVisible ? "toast-visible" : "toast-hidden")" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header @toastHeaderClass">
+                    <i class="bi @toastIcon me-2"></i>
+                    <strong class="me-auto">@toastTitle</strong>
+                    <small>just now</small>
+                    <button type="button" class="btn-close" @onclick="CloseToast"></button>
+                </div>
+                <div class="toast-body">
+                    @toastMessage
+                </div>
+            </div>
+        </div>
+    }
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0;
+        color: #333;
+    }
+
+    .search-group {
+        max-width: 350px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .category-image-small {
+        width: 50px;
+        height: 40px;
+        background-color: #f0f0f0;
+        border-radius: 6px;
+        background-image: url('https://via.placeholder.com/50x40');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .modal-backdrop {
+        opacity: 0.5;
+    }
+    
+    .clear-search-btn {
+        cursor: pointer;
+        background-color: transparent;
+        border-left: none;
+    }
+
+    .clear-search-btn:hover {
+        color: #dc3545;
+    }
+    
+    .toast-container {
+        z-index: 1100;
+    }
+    
+    .toast-custom {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        min-width: 300px;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    
+    .toast-hidden {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .toast-visible {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-header {
+        border-bottom: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+    
+    .bg-danger-light {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+</style>
+
+@code {
+    private List<SeeSharp.Admin.Services.CategoryDto> CategoryList { get; set; } = new List<SeeSharp.Admin.Services.CategoryDto>();
+    private string searchTerm = "";
+    private string statusFilter = "";
+    private SeeSharp.Admin.Services.CategoryDto? categoryToDelete;
+    private SeeSharp.Admin.Services.CategoryDto? categoryToRestore;
+    private bool showDeleteConfirmation = false;
+    private bool showRestoreConfirmation = false;
+    private bool isLoading = true;
+    
+    // Pagination properties
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalCount = 0;
+    private bool hasNextPage = false;
+    private bool hasPreviousPage = false;
+    
+    // Toast notification properties
+    private bool showToast = false;
+    private bool isToastVisible = false;
+    private string toastMessage = "";
+    private string toastTitle = "";
+    private string toastHeaderClass = "";
+    private string toastIcon = "";
+    private System.Threading.Timer? toastTimer;
+
+    // Computed property to determine pagination
+    private int TotalPages => (int)Math.Ceiling(totalCount / (double)pageSize);
+
+    // Filtered categories is now directly from API
+    private IEnumerable<SeeSharp.Admin.Services.CategoryDto> FilteredCategories => CategoryList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        isLoading = true;
+        try
+        {
+            // Build the URL with query parameters
+            var url = $"https://localhost:7222/api/categories?page={currentPage}&pageSize={pageSize}";
+            
+            // Add search parameter if provided
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                url += $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
+            }
+            
+            // Add status filter if selected
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                url += $"&status={Uri.EscapeDataString(statusFilter)}";
+            }
+            
+            Console.WriteLine($"Calling API: {url}");
+            var response = await Http.GetFromJsonAsync<CategoryResponse>(url);
+            
+            if (response != null)
+            {
+                CategoryList = response.Items.Select(item => new CategoryDto
+                {
+                    Id = item.CategoryId,
+                    Name = item.CategoryName,
+                    ImageUrl = item.ImageUrl,
+                    IsActive = item.CategoryStatus == "Available",
+                    IsDefault = item.IsDefault,
+                    Description = item.Description ?? string.Empty
+                }).ToList();
+                
+                // Update pagination information
+                currentPage = response.Page;
+                pageSize = response.PageSize;
+                totalCount = response.TotalCount;
+                hasNextPage = response.HasNextPage;
+                hasPreviousPage = response.HasPreviousPage;
+            }
+            else
+            {
+                CategoryList = new List<CategoryDto>();
+                totalCount = 0;
+                hasNextPage = false;
+                hasPreviousPage = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading categories: {ex.Message}");
+            ShowErrorToast($"Error loading categories: {ex.Message}");
+            CategoryList = new List<CategoryDto>();
+            totalCount = 0;
+            hasNextPage = false;
+            hasPreviousPage = false;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchCategories();
+        }
+    }
+
+    private async Task SearchCategories()
+    {
+        currentPage = 1; // Reset to first page when searching
+        await LoadCategoriesAsync();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        currentPage = 1;
+        await LoadCategoriesAsync();
+    }
+
+    private async Task OnStatusSelected(ChangeEventArgs e)
+    {
+        statusFilter = e.Value?.ToString() ?? "";
+        currentPage = 1;
+        await LoadCategoriesAsync();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        currentPage = page;
+        await LoadCategoriesAsync();
+    }
+
+    private async Task NextPage()
+    {
+        if (hasNextPage)
+        {
+            currentPage++;
+            await LoadCategoriesAsync();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (hasPreviousPage)
+        {
+            currentPage--;
+            await LoadCategoriesAsync();
+        }
+    }
+
+    private void NavigateToAddCategory()
+    {
+        NavigationManager.NavigateTo("/categories/add");
+    }
+
+    private void NavigateToEditCategory(string id)
+    {
+        NavigationManager.NavigateTo($"/categories/edit/{id}");
+    }
+
+    private void DeleteCategory(SeeSharp.Admin.Services.CategoryDto category)
+    {
+        categoryToDelete = category;
+        showDeleteConfirmation = true;
+    }
+
+    private void RestoreCategory(SeeSharp.Admin.Services.CategoryDto category)
+    {
+        categoryToRestore = category;
+        showRestoreConfirmation = true;
+    }
+
+    private async Task ShowWithAnimation()
+    {
+        // First set the initial state (hidden)
+        toastTimer?.Dispose();
+        showToast = true;
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        // Short delay to ensure the DOM is updated and the transition will work
+        await Task.Delay(50);
+        
+        // Now show with animation
+        isToastVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void ShowSuccessToast(string message)
+    {
+        toastTitle = "Success";
+        toastMessage = message;
+        toastHeaderClass = "bg-success-light";
+        toastIcon = "bi-check-circle";
+        
+        // Show toast with animation
+        _ = ShowWithAnimation();
+        
+        // Auto-hide toast after 5 seconds
+        SetupToastAutoHide();
+    }
+    
+    private void ShowErrorToast(string message)
+    {
+        toastTitle = "Error";
+        toastMessage = message;
+        toastHeaderClass = "bg-danger-light";
+        toastIcon = "bi-exclamation-circle";
+        
+        // Show toast with animation
+        _ = ShowWithAnimation();
+        
+        // Auto-hide toast after 5 seconds
+        SetupToastAutoHide();
+    }
+    
+    private async Task CloseToast()
+    {
+        // Animate out
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        // Wait for animation to complete
+        await Task.Delay(300);
+        
+        // Then hide the toast
+        showToast = false;
+        toastTimer?.Dispose();
+        toastTimer = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void SetupToastAutoHide()
+    {
+        // Dispose of existing timer if there is one
+        toastTimer?.Dispose();
+        
+        // Create a new timer that will hide the toast after 5 seconds
+        toastTimer = new System.Threading.Timer(async _ => 
+        {
+            await InvokeAsync(CloseToast);
+        }, null, 5000, System.Threading.Timeout.Infinite);
+    }
+
+    private async Task ConfirmDeleteCategory()
+    {
+        if (categoryToDelete != null)
+        {
+            string categoryName = categoryToDelete.Name;
+            
+            try
+            {
+                // Call the DELETE endpoint directly
+                var response = await Http.DeleteAsync($"https://localhost:7222/api/categories/{categoryToDelete.Id}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Reload categories after successful deletion
+                    await LoadCategoriesAsync();
+                    ShowSuccessToast($"Category '{categoryName}' has been deleted successfully.");
+                }
+                else
+                {
+                    // Handle error response
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Error deleting category: {response.StatusCode}, {errorContent}");
+                    ShowErrorToast($"Failed to delete category '{categoryName}'. Please try again.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception when deleting category: {ex.Message}");
+                ShowErrorToast($"An error occurred while deleting category '{categoryName}': {ex.Message}");
+            }
+            finally
+            {
+                showDeleteConfirmation = false;
+                categoryToDelete = null;
+            }
+        }
+    }
+
+    private async Task ConfirmRestoreCategory()
+    {
+        if (categoryToRestore != null)
+        {
+            string categoryName = categoryToRestore.Name;
+            
+            try
+            {
+                // Create an HttpRequestMessage for PATCH
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"https://localhost:7222/api/categories/{categoryToRestore.Id}/restore");
+                
+                // Send the request
+                var response = await Http.SendAsync(request);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Reload categories after successful restoration
+                    await LoadCategoriesAsync();
+                    ShowSuccessToast($"Category '{categoryName}' has been restored successfully.");
+                }
+                else
+                {
+                    // Handle error response
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Error restoring category: {response.StatusCode}, {errorContent}");
+                    ShowErrorToast($"Failed to restore category '{categoryName}'. Please try again.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception when restoring category: {ex.Message}");
+                ShowErrorToast($"An error occurred while restoring category '{categoryName}': {ex.Message}");
+            }
+            finally
+            {
+                showRestoreConfirmation = false;
+                categoryToRestore = null;
+            }
+        }
+    }
+} 

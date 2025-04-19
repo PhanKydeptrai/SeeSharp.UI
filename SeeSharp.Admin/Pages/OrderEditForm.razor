@@ -1,0 +1,486 @@
+@page "/orders/{OrderId}/edit"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Edit Order - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-1">
+                                <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+                                <li class="breadcrumb-item"><a href="/orders/@OrderId">Order #@OrderId</a></li>
+                                <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                            </ol>
+                        </nav>
+                        <h1 class="page-title mb-0">
+                            <i class="bi bi-pencil-square me-2"></i>Edit Order #@OrderId
+                        </h1>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="GoBack">
+                            <i class="bi bi-arrow-left me-2"></i>Back
+                        </button>
+                        <button class="btn btn-primary" @onclick="SaveChanges">
+                            <i class="bi bi-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <!-- Order Details Form -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="orderDate" class="form-label">Order Date</label>
+                                    <input type="datetime-local" class="form-control" id="orderDate" @bind="OrderDate" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" @bind="Status">
+                                        <option value="Pending">Pending</option>
+                                        <option value="Processing">Processing</option>
+                                        <option value="Shipped">Shipped</option>
+                                        <option value="Delivered">Delivered</option>
+                                        <option value="Cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="paymentMethod" class="form-label">Payment Method</label>
+                                    <select class="form-select" id="paymentMethod" @bind="PaymentMethod">
+                                        <option value="CreditCard">Credit Card</option>
+                                        <option value="PayPal">PayPal</option>
+                                        <option value="BankTransfer">Bank Transfer</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="shippingMethod" class="form-label">Shipping Method</label>
+                                    <select class="form-select" id="shippingMethod" @bind="ShippingMethod">
+                                        <option value="Standard">Standard Shipping (5-7 business days)</option>
+                                        <option value="Express">Express Shipping (2-3 business days)</option>
+                                        <option value="Overnight">Overnight Shipping (1 business day)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="trackingNumber" class="form-label">Tracking Number</label>
+                                    <input type="text" class="form-control" id="trackingNumber" placeholder="Enter tracking number" @bind="TrackingNumber" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="estimatedDelivery" class="form-label">Estimated Delivery Date</label>
+                                    <input type="date" class="form-control" id="estimatedDelivery" @bind="EstimatedDeliveryDate" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Order Items</h5>
+                            <button class="btn btn-sm btn-primary" @onclick="AddOrderItem">
+                                <i class="bi bi-plus-lg me-1"></i>Add Item
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40%">Product</th>
+                                        <th>Unit Price</th>
+                                        <th>Quantity</th>
+                                        <th>Total</th>
+                                        <th style="width: 80px">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in OrderItems)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <select class="form-select" @bind="item.ProductId">
+                                                    <option value="1">Product One - PROD-001</option>
+                                                    <option value="2">Product Two - PROD-002</option>
+                                                    <option value="3">Product Three - PROD-003</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" class="form-control" @bind="item.UnitPrice" min="0.01" step="0.01" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control" @bind="item.Quantity" min="1" @oninput="RecalculateOrderTotals" />
+                                            </td>
+                                            <td>
+                                                $@((item.UnitPrice * item.Quantity).ToString("F2"))
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveOrderItem(item)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-group-divider">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">Subtotal</td>
+                                        <td colspan="2" class="fw-bold">$@SubTotal.ToString("F2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Totals and Discounts -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Order Totals</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="discountCode" class="form-label">Discount Code</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="discountCode" placeholder="Enter discount code" @bind="DiscountCode" />
+                                        <button class="btn btn-outline-secondary" type="button" @onclick="ApplyDiscount">Apply</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="discountAmount" class="form-label">Discount Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="discountAmount" @bind="DiscountAmount" min="0" step="0.01" @oninput="RecalculateOrderTotals" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="shippingCost" class="form-label">Shipping Cost</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="shippingCost" @bind="ShippingCost" min="0" step="0.01" @oninput="RecalculateOrderTotals" />
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="tax" class="form-label">Tax</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="tax" @bind="TaxAmount" min="0" step="0.01" @oninput="RecalculateOrderTotals" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="alert alert-primary d-flex justify-content-between align-items-center">
+                                    <div class="fw-bold">Total Order Amount:</div>
+                                    <div class="fw-bold fs-5">$@TotalAmount.ToString("F2")</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Customer Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Customer</h5>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="ChangeCustomer">
+                                <i class="bi bi-person me-1"></i>Change
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="avatar-initial rounded-circle bg-primary text-white me-3">
+                                <span>JD</span>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">John Doe</h6>
+                                <span class="text-muted small">Customer since Jan 2023</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-muted small mb-1">Contact Information</div>
+                            <div><i class="bi bi-envelope me-2"></i>john.doe@example.com</div>
+                            <div><i class="bi bi-telephone me-2"></i>(123) 456-7890</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shipping Address -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Shipping Address</h5>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="EditShippingAddress">
+                                <i class="bi bi-pencil me-1"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <address>
+                            John Doe<br />
+                            123 Main Street<br />
+                            Apt 4B<br />
+                            New York, NY 10001<br />
+                            United States
+                        </address>
+                    </div>
+                </div>
+
+                <!-- Billing Address -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Billing Address</h5>
+                            <div class="d-flex gap-2">
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="sameAsShipping" @bind="SameAsShipping">
+                                    <label class="form-check-label" for="sameAsShipping">Same as shipping</label>
+                                </div>
+                                @if (!SameAsShipping)
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="EditBillingAddress">
+                                        <i class="bi bi-pencil me-1"></i>Edit
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (SameAsShipping)
+                        {
+                            <div class="text-muted">Same as shipping address</div>
+                        }
+                        else
+                        {
+                            <address>
+                                John Doe<br />
+                                123 Main Street<br />
+                                Apt 4B<br />
+                                New York, NY 10001<br />
+                                United States
+                            </address>
+                        }
+                    </div>
+                </div>
+
+                <!-- Payment Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Payment Information</h5>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="EditPaymentInfo">
+                                <i class="bi bi-pencil me-1"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-credit-card fs-4 me-3"></i>
+                            <div>
+                                <div>Visa Card ending in 4242</div>
+                                <div class="text-muted small">Expires 09/2026</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: rgba(0,0,0,0.02);
+        padding: 1rem;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .card-title {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .avatar-initial {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string OrderId { get; set; }
+    
+    // Order Properties
+    private DateTime OrderDate { get; set; } = DateTime.Now;
+    private string Status { get; set; } = "Processing";
+    private string PaymentMethod { get; set; } = "CreditCard";
+    private string ShippingMethod { get; set; } = "Express";
+    private string TrackingNumber { get; set; } = "TR123456789";
+    private DateTime EstimatedDeliveryDate { get; set; } = DateTime.Now.AddDays(3);
+    
+    // Totals
+    private decimal SubTotal => OrderItems.Sum(i => i.UnitPrice * i.Quantity);
+    private decimal DiscountAmount { get; set; } = 20.00m;
+    private string DiscountCode { get; set; } = "SUMMER20";
+    private decimal ShippingCost { get; set; } = 0.00m;
+    private decimal TaxAmount { get; set; } = 0.00m;
+    private decimal TotalAmount => SubTotal - DiscountAmount + ShippingCost + TaxAmount;
+    
+    // Address
+    private bool SameAsShipping { get; set; } = true;
+    
+    // Order Items
+    private List<OrderItemViewModel> OrderItems { get; set; } = new List<OrderItemViewModel>();
+    
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+    
+    protected override void OnInitialized()
+    {
+        // Load order data (for demo purposes we'll create some sample data)
+        OrderItems.Add(new OrderItemViewModel { ProductId = 1, ProductName = "Product One", UnitPrice = 49.99m, Quantity = 2 });
+        OrderItems.Add(new OrderItemViewModel { ProductId = 2, ProductName = "Product Two", UnitPrice = 35.00m, Quantity = 2 });
+    }
+    
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo($"/orders/{OrderId}");
+    }
+    
+    private void SaveChanges()
+    {
+        // Implement save logic
+        NavigationManager.NavigateTo($"/orders/{OrderId}");
+    }
+    
+    private void AddOrderItem()
+    {
+        OrderItems.Add(new OrderItemViewModel { ProductId = 1, ProductName = "Select Product", UnitPrice = 0, Quantity = 1 });
+    }
+    
+    private void RemoveOrderItem(OrderItemViewModel item)
+    {
+        OrderItems.Remove(item);
+        RecalculateOrderTotals();
+    }
+    
+    private void ApplyDiscount()
+    {
+        // Implement discount logic
+        if (DiscountCode == "SUMMER20")
+        {
+            DiscountAmount = 20.00m;
+        }
+        else if (DiscountCode == "SAVE10")
+        {
+            DiscountAmount = 10.00m;
+        }
+        else
+        {
+            DiscountAmount = 0;
+        }
+        
+        RecalculateOrderTotals();
+    }
+    
+    private void RecalculateOrderTotals()
+    {
+        // This method is called when values change that affect the total
+        StateHasChanged();
+    }
+    
+    private void ChangeCustomer()
+    {
+        // Implement customer change logic
+    }
+    
+    private void EditShippingAddress()
+    {
+        // Implement shipping address edit logic
+    }
+    
+    private void EditBillingAddress()
+    {
+        // Implement billing address edit logic
+    }
+    
+    private void EditPaymentInfo()
+    {
+        // Implement payment info edit logic
+    }
+    
+    // View model for order items
+    public class OrderItemViewModel
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; }
+        public decimal UnitPrice { get; set; }
+        public int Quantity { get; set; }
+    }
+} 

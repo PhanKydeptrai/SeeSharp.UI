@@ -1,0 +1,174 @@
+﻿@page "/home"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="dashboard-container">
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="welcome-card">
+                    <div class="card-body">
+                        <h2 class="welcome-title">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Admin Dashboard
+                        </h2>
+                        <p class="welcome-subtitle">Manage your eyewear store with ease</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="bi bi-cart-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h5 class="stat-title">Total Orders</h5>
+                        <h3 class="stat-value">254</h3>
+                        <p class="stat-change positive">
+                            <i class="bi bi-arrow-up-right"></i> 12.5%
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h5 class="stat-title">Customers</h5>
+                        <h3 class="stat-value">1,248</h3>
+                        <p class="stat-change positive">
+                            <i class="bi bi-arrow-up-right"></i> 5.3%
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="bi bi-eye-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h5 class="stat-title">Products</h5>
+                        <h3 class="stat-value">468</h3>
+                        <p class="stat-change positive">
+                            <i class="bi bi-arrow-up-right"></i> 8.1%
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h5 class="stat-title">Revenue</h5>
+                        <h3 class="stat-value">$34,582</h3>
+                        <p class="stat-change positive">
+                            <i class="bi bi-arrow-up-right"></i> 15.2%
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</PageRedirector>
+
+<style>
+    .dashboard-container {
+        padding: 1rem;
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, #0d6efd, #0a58ca);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(13, 110, 253, 0.2);
+    }
+
+    .welcome-title {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .stat-card {
+        background-color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-icon {
+        font-size: 2.2rem;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        margin-right: 1rem;
+        color: white;
+        background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-title {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        color: #212529;
+    }
+
+    .stat-change {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+
+    .stat-change.positive {
+        color: #198754;
+    }
+
+    .stat-change.negative {
+        color: #dc3545;
+    }
+
+    .stat-change i {
+        margin-right: 0.25rem;
+    }
+</style>

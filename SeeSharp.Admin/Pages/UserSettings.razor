@@ -1,0 +1,934 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@using System.Net.Http.Headers
+@attribute [Authorize]
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
+
+<PageTitle>User Settings - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <h1 class="page-title mb-0">
+                        <i class="bi bi-gear me-2"></i>User Settings
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card settings-nav">
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            <button @onclick="@(e => SetTab("profile"))" 
+                                    class="list-group-item list-group-item-action @(ActiveTab == "profile" ? "active" : "")">
+                                <i class="bi bi-person me-2"></i>Profile
+                            </button>
+                            <button @onclick="@(e => SetTab("password"))" 
+                                    class="list-group-item list-group-item-action @(ActiveTab == "password" ? "active" : "")">
+                                <i class="bi bi-shield-lock me-2"></i>Password
+                            </button>
+                            @* <button @onclick="@(e => SetTab("notifications"))" 
+                                    class="list-group-item list-group-item-action @(ActiveTab == "notifications" ? "active" : "")">
+                                <i class="bi bi-bell me-2"></i>Notifications
+                            </button> *@
+                            @* <button @onclick="@(e => SetTab("appearance"))" 
+                                    class="list-group-item list-group-item-action @(ActiveTab == "appearance" ? "active" : "")">
+                                <i class="bi bi-palette me-2"></i>Appearance
+                            </button> *@
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-body">
+                        @if (ActiveTab == "profile")
+                        {
+                            <h5 class="card-title mb-4">Profile Information</h5>
+                            
+                            @if (isLoading)
+                            {
+                                <div class="d-flex justify-content-center my-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading profile...</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-circle me-2"></i>@errorMessage
+                                </div>
+                            }
+                            else
+                            {
+                                <EditForm Model="@userProfile" OnValidSubmit="HandleProfileSubmit">
+                                    <DataAnnotationsValidator />
+                                    
+                                    <div class="row mb-4">
+                                        <div class="col-md-3 text-center">
+                                            <div class="user-avatar mx-auto mb-3" style="@(!string.IsNullOrEmpty(userProfile.ImageUrl) ? $"background-image: url('{userProfile.ImageUrl}')" : "")"></div>
+                                            <InputFile OnChange="@OnInputFileChange" class="d-none" id="fileInput" accept=".jpg,.jpeg,.png" />
+                                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ClickFileInput">
+                                                <i class="bi bi-upload me-1"></i>Upload Photo
+                                            </button>
+                                            @if (isUploading)
+                                            {
+                                                <div class="mt-2 text-center">
+                                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                        <span class="visually-hidden">Uploading...</span>
+                                                    </div>
+                                                    <small class="ms-1">Uploading...</small>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="col-md-9">
+                                            <div class="row g-3">
+                                                <div class="col-md-12">
+                                                    <label for="userName" class="form-label">User Name</label>
+                                                    <InputText id="userName" @bind-Value="userProfile.UserName" class="form-control" />
+                                                    <ValidationMessage For="@(() => userProfile.UserName)" />
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="email" class="form-label">Email Address</label>
+                                                    <InputText id="email" @bind-Value="userProfile.Email" class="form-control" readonly />
+                                                    <ValidationMessage For="@(() => userProfile.Email)" />
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="phone" class="form-label">Phone Number</label>
+                                                    <InputText id="phone" @bind-Value="userProfile.Phone" class="form-control" />
+                                                    <ValidationMessage For="@(() => userProfile.Phone)" />
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="dateOfBirth" class="form-label">Date of Birth</label>
+                                                    <InputDate id="dateOfBirth" @bind-Value="userProfile.DateOfBirth" class="form-control" />
+                                                    <ValidationMessage For="@(() => userProfile.DateOfBirth)" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="border-bottom pb-2 mb-3">Role Information</h6>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-12">
+                                            <label class="form-label">User Role</label>
+                                            <input type="text" class="form-control" value="@userProfile.Role" readonly />
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                            @if (isLoading)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                <span>Saving...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-check2 me-2"></i>
+                                                <span>Save Changes</span>
+                                            }
+                                        </button>
+                                    </div>
+                                </EditForm>
+                            }
+                        }
+                        else if (ActiveTab == "password")
+                        {
+                            <h5 class="card-title mb-4">Change Password</h5>
+                            <EditForm Model="@passwordModel" OnValidSubmit="HandlePasswordSubmit">
+                                <DataAnnotationsValidator />
+                                
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <InputText type="password" id="currentPassword" @bind-Value="passwordModel.CurrentPassword" class="form-control" />
+                                    <ValidationMessage For="@(() => passwordModel.CurrentPassword)" />
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <InputText type="password" id="newPassword" @bind-Value="passwordModel.NewPassword" class="form-control" />
+                                    <ValidationMessage For="@(() => passwordModel.NewPassword)" />
+                                    <div class="form-text mt-2">
+                                        Password must be at least 8 characters.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <InputText type="password" id="confirmPassword" @bind-Value="passwordModel.ConfirmPassword" class="form-control" />
+                                    <ValidationMessage For="@(() => passwordModel.ConfirmPassword)" />
+                                </div>
+                                
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                        @if (isLoading)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            <span>Updating...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-key me-2"></i>
+                                            <span>Update Password</span>
+                                        }
+                                    </button>
+                                </div>
+                            </EditForm>
+                        }
+                        @* else if (ActiveTab == "notifications")
+                        {
+                            <h5 class="card-title mb-4">Notification Preferences</h5>
+                            <EditForm Model="@notificationSettings" OnValidSubmit="HandleNotificationsSubmit">
+                                <div class="mb-4">
+                                    <h6 class="border-bottom pb-2 mb-3">Email Notifications</h6>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="emailSystem" @bind-Value="notificationSettings.EmailSystem" class="form-check-input" />
+                                        <label class="form-check-label" for="emailSystem">
+                                            System notifications and updates
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="emailOrders" @bind-Value="notificationSettings.EmailOrders" class="form-check-input" />
+                                        <label class="form-check-label" for="emailOrders">
+                                            New orders and sales
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="emailInventory" @bind-Value="notificationSettings.EmailInventory" class="form-check-input" />
+                                        <label class="form-check-label" for="emailInventory">
+                                            Inventory alerts
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="emailMarketing" @bind-Value="notificationSettings.EmailMarketing" class="form-check-input" />
+                                        <label class="form-check-label" for="emailMarketing">
+                                            Marketing and promotional emails
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6 class="border-bottom pb-2 mb-3">Browser Notifications</h6>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="browserSystem" @bind-Value="notificationSettings.BrowserSystem" class="form-check-input" />
+                                        <label class="form-check-label" for="browserSystem">
+                                            System notifications and updates
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="browserOrders" @bind-Value="notificationSettings.BrowserOrders" class="form-check-input" />
+                                        <label class="form-check-label" for="browserOrders">
+                                            New orders and sales
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <InputCheckbox id="browserInventory" @bind-Value="notificationSettings.BrowserInventory" class="form-check-input" />
+                                        <label class="form-check-label" for="browserInventory">
+                                            Inventory alerts
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check2 me-2"></i>Save Preferences
+                                    </button>
+                                </div>
+                            </EditForm>
+                        } *@
+                        @* else if (ActiveTab == "appearance")
+                        {
+                            <h5 class="card-title mb-4">Appearance Settings</h5>
+                            <EditForm Model="@appearanceSettings" OnValidSubmit="HandleAppearanceSubmit">
+                                <div class="mb-4">
+                                    <h6 class="border-bottom pb-2 mb-3">Theme</h6>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check theme-option @(appearanceSettings.Theme == "light" ? "selected" : "")">
+                                                <input type="radio" class="form-check-input" id="themeLight" name="theme" value="light"
+                                                       checked="@(appearanceSettings.Theme == "light")" @onchange="@(e => appearanceSettings.Theme = "light")" />
+                                                <label class="form-check-label d-block" for="themeLight">
+                                                    <div class="theme-preview light-theme"></div>
+                                                    <span>Light</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check theme-option @(appearanceSettings.Theme == "dark" ? "selected" : "")">
+                                                <input type="radio" class="form-check-input" id="themeDark" name="theme" value="dark"
+                                                       checked="@(appearanceSettings.Theme == "dark")" @onchange="@(e => appearanceSettings.Theme = "dark")" />
+                                                <label class="form-check-label d-block" for="themeDark">
+                                                    <div class="theme-preview dark-theme"></div>
+                                                    <span>Dark</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check theme-option @(appearanceSettings.Theme == "system" ? "selected" : "")">
+                                                <input type="radio" class="form-check-input" id="themeSystem" name="theme" value="system"
+                                                       checked="@(appearanceSettings.Theme == "system")" @onchange="@(e => appearanceSettings.Theme = "system")" />
+                                                <label class="form-check-label d-block" for="themeSystem">
+                                                    <div class="theme-preview system-theme"></div>
+                                                    <span>System</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6 class="border-bottom pb-2 mb-3">Accent Color</h6>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        @foreach (var color in accentColors)
+                                        {
+                                            <div class="form-check color-option @(appearanceSettings.AccentColor == color.Value ? "selected" : "")">
+                                                <input type="radio" class="form-check-input" id="color@(color.Value)" name="accentColor" value="@color.Value"
+                                                       checked="@(appearanceSettings.AccentColor == color.Value)" @onchange="@(e => appearanceSettings.AccentColor = color.Value)" />
+                                                <label class="form-check-label" for="color@(color.Value)">
+                                                    <div class="color-preview" style="background-color: @color.Value;"></div>
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6 class="border-bottom pb-2 mb-3">Font Size</h6>
+                                    <div class="mb-3">
+                                        <label for="fontSize" class="form-label">@appearanceSettings.FontSize%</label>
+                                        <input type="range" class="form-range" id="fontSize" min="80" max="120" step="5" 
+                                               value="@appearanceSettings.FontSize" @onchange="@(e => appearanceSettings.FontSize = int.Parse(e.Value.ToString()))" />
+                                    </div>
+                                    <div class="font-sample" style="font-size: @(appearanceSettings.FontSize)%;">
+                                        This is a sample text showing how your content will appear with the selected font size.
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check2 me-2"></i>Save Appearance
+                                    </button>
+                                </div>
+                            </EditForm>
+                        } *@
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</PageRedirector>
+
+<!-- Toast notifications -->
+@if (showToast)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show toast-custom @(isToastVisible ? "toast-visible" : "toast-hidden")" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header @toastHeaderClass">
+                <i class="bi @toastIcon me-2"></i>
+                <strong class="me-auto">@toastTitle</strong>
+                <small>just now</small>
+                <button type="button" class="btn-close" @onclick="CloseToast"></button>
+            </div>
+            <div class="toast-body">
+                @toastMessage
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .settings-nav .list-group-item {
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        padding: 0.75rem 1.25rem;
+    }
+
+    .settings-nav .list-group-item:first-child {
+        border-top: none;
+    }
+
+    .settings-nav .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+    .settings-nav .list-group-item.active {
+        background-color: #f8f9fa;
+        color: #0d6efd;
+        font-weight: 500;
+        border-color: rgba(0,0,0,0.08);
+    }
+
+    .user-avatar {
+        width: 120px;
+        height: 120px;
+        background-color: #f0f0f0;
+        border-radius: 50%;
+        background-image: url('https://via.placeholder.com/120');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .theme-option, .color-option {
+        position: relative;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+    }
+
+    .theme-option.selected, .color-option.selected {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    .theme-preview {
+        width: 100%;
+        height: 100px;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .light-theme {
+        background-color: #fff;
+    }
+
+    .dark-theme {
+        background-color: #212529;
+    }
+
+    .system-theme {
+        background: linear-gradient(135deg, #fff 0%, #fff 50%, #212529 50%, #212529 100%);
+    }
+
+    .color-preview {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .font-sample {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.375rem;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .toast-container {
+        z-index: 1050;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+    
+    .bg-danger-light {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+    
+    .toast-custom {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        min-width: 300px;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    
+    .toast-hidden {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .toast-visible {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-header {
+        border-bottom: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.95rem;
+    }
+</style>
+
+@code {
+    private string ActiveTab { get; set; } = "profile";
+    private UserProfileModel userProfile = new();
+    private PasswordChangeModel passwordModel = new();
+    private NotificationSettingsModel notificationSettings = new();
+    private AppearanceSettingsModel appearanceSettings = new();
+    private bool isLoading = true;
+    private bool isUploading = false;
+    private string errorMessage = string.Empty;
+
+    private List<(string Name, string Value)> accentColors = new List<(string Name, string Value)>
+    {
+        ("Blue", "#0d6efd"),
+        ("Indigo", "#6610f2"),
+        ("Purple", "#6f42c1"),
+        ("Pink", "#d63384"),
+        ("Red", "#dc3545"),
+        ("Orange", "#fd7e14"),
+        ("Yellow", "#ffc107"),
+        ("Green", "#198754"),
+        ("Teal", "#20c997"),
+        ("Cyan", "#0dcaf0")
+    };
+
+    // Toast notification properties
+    private bool showToast = false;
+    private bool isToastVisible = false;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private string toastHeaderClass = "";
+    private string toastIcon = "";
+    private System.Threading.Timer? toastTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Fetch user profile from the API
+            var response = await HttpClient.GetFromJsonAsync<UserProfileDto>("https://localhost:7222/api/employees/profile");
+            
+            if (response != null)
+            {
+                // Map API response to the form model
+                userProfile = new UserProfileModel
+                {
+                    UserName = response.UserName,
+                    Email = response.Email,
+                    Phone = response.PhoneNumber,
+                    Role = response.Role,
+                    Location = string.Empty, // This isn't provided by the API
+                    Language = "en-US",
+                    UserId = response.UserId,
+                    ImageUrl = response.ImageUrl,
+                    DateOfBirth = response.DateOfBirth
+                };
+            }
+            
+            // Initialize other settings
+            notificationSettings = new NotificationSettingsModel
+            {
+                EmailSystem = true,
+                EmailOrders = true,
+                EmailInventory = true,
+                EmailMarketing = false,
+                BrowserSystem = true,
+                BrowserOrders = true,
+                BrowserInventory = false
+            };
+
+            appearanceSettings = new AppearanceSettingsModel
+            {
+                Theme = "light",
+                AccentColor = "#0d6efd",
+                FontSize = 100
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load user profile: {ex.Message}";
+            Console.WriteLine($"Error loading profile: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleProfileSubmit()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Create a multipart form content for sending both text fields and image
+            using var content = new MultipartFormDataContent();
+            
+            // Add text fields
+            content.Add(new StringContent(userProfile.UserName), "userName");
+            content.Add(new StringContent(userProfile.Phone), "phoneNumber");
+            
+            // Add date of birth if it has a value
+            if (userProfile.DateOfBirth.HasValue)
+            {
+                var dateOnly = userProfile.DateOfBirth.Value.ToString("yyyy-MM-dd");
+                content.Add(new StringContent(dateOnly), "dateOfBirth");
+            }
+            
+            // Add image file if it's been updated and is a data URL
+            if (!string.IsNullOrEmpty(userProfile.ImageUrl) && userProfile.ImageUrl.StartsWith("data:image"))
+            {
+                try
+                {
+                    // Parse the base64 image data
+                    var base64Data = userProfile.ImageUrl.Split(',')[1];
+                    var imageBytes = Convert.FromBase64String(base64Data);
+                    
+                    // Get the content type
+                    var contentType = userProfile.ImageUrl.Split(':')[1].Split(';')[0];
+                    
+                    // Create an appropriate file name
+                    var fileName = $"profile_image_{DateTime.Now.Ticks}.{(contentType == "image/png" ? "png" : "jpg")}";
+                    
+                    // Add the image to the form content
+                    var imageContent = new ByteArrayContent(imageBytes);
+                    imageContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                    content.Add(imageContent, "imageFile", fileName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing image data: {ex.Message}");
+                    // Continue without adding the image
+                }
+            }
+            
+            // Send the data to the API
+            var response = await HttpClient.PutAsync("https://localhost:7222/api/employees/profile", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Refresh the profile data
+                await RefreshProfileData();
+                
+                ShowSuccessToast("Success", "Profile updated successfully.");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                ShowErrorToast("Error", $"Failed to update profile: {response.StatusCode}");
+                Console.WriteLine($"Profile update error: {errorResponse}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", $"An error occurred: {ex.Message}");
+            Console.WriteLine($"Exception during profile update: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task RefreshProfileData()
+    {
+        try
+        {
+            // Re-fetch the user profile to get the updated data
+            var response = await HttpClient.GetFromJsonAsync<UserProfileDto>("https://localhost:7222/api/employees/profile");
+            
+            if (response != null)
+            {
+                userProfile.UserName = response.UserName;
+                userProfile.Email = response.Email;
+                userProfile.Phone = response.PhoneNumber;
+                userProfile.Role = response.Role;
+                userProfile.DateOfBirth = response.DateOfBirth;
+                userProfile.ImageUrl = response.ImageUrl;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing profile: {ex.Message}");
+        }
+    }
+
+    private async Task HandlePasswordSubmit()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Create password change request
+            var passwordChangeRequest = new
+            {
+                currentPassword = passwordModel.CurrentPassword,
+                newPassword = passwordModel.NewPassword,
+                repeatNewPassword = passwordModel.ConfirmPassword
+            };
+            
+            // Call API to change password
+            var response = await HttpClient.PostAsJsonAsync("https://localhost:7222/api/employees/change-password", passwordChangeRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Clear password fields
+                passwordModel = new PasswordChangeModel();
+                
+                ShowSuccessToast("Success", "Password updated successfully.");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                ShowErrorToast("Error", $"Failed to update password: {(response.StatusCode == System.Net.HttpStatusCode.BadRequest ? "Current password is incorrect" : response.StatusCode.ToString())}");
+                Console.WriteLine($"Password change error: {errorResponse}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", $"An error occurred: {ex.Message}");
+            Console.WriteLine($"Exception during password change: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void HandleNotificationsSubmit()
+    {
+        // In a real application, you would save the notification settings
+        // ShowNotification("Notification preferences updated.");
+    }
+
+    private void HandleAppearanceSubmit()
+    {
+        // In a real application, you would save and apply the appearance settings
+        // ShowNotification("Appearance settings updated.");
+    }
+
+    private void SetTab(string tabName)
+    {
+        ActiveTab = tabName;
+    }
+
+    public class UserProfileModel
+    {
+        public string UserId { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Username is required")]
+        [StringLength(100, ErrorMessage = "Username cannot exceed 100 characters")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string Email { get; set; } = string.Empty;
+
+        [Phone(ErrorMessage = "Please enter a valid phone number")]
+        public string Phone { get; set; } = string.Empty;
+        
+        public DateTime? DateOfBirth { get; set; }
+
+        public string Role { get; set; } = string.Empty;
+
+        [StringLength(100, ErrorMessage = "Location cannot exceed 100 characters")]
+        public string Location { get; set; } = string.Empty;
+
+        public string Language { get; set; } = "en-US";
+        
+        public string ImageUrl { get; set; } = string.Empty;
+    }
+
+    // Data Transfer Object that matches the API response
+    public class UserProfileDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public DateTime? DateOfBirth { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string UserStatus { get; set; } = string.Empty;
+    }
+
+    public class PasswordChangeModel
+    {
+        [Required(ErrorMessage = "Current password is required")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
+        [StringLength(100, ErrorMessage = "Password must be at least {2} characters long", MinimumLength = 8)]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password confirmation is required")]
+        [Compare("NewPassword", ErrorMessage = "The passwords do not match")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+
+    public class NotificationSettingsModel
+    {
+        public bool EmailSystem { get; set; }
+        public bool EmailOrders { get; set; }
+        public bool EmailInventory { get; set; }
+        public bool EmailMarketing { get; set; }
+        public bool BrowserSystem { get; set; }
+        public bool BrowserOrders { get; set; }
+        public bool BrowserInventory { get; set; }
+    }
+
+    public class AppearanceSettingsModel
+    {
+        public string Theme { get; set; } = "light";
+        public string AccentColor { get; set; } = "#0d6efd";
+        public int FontSize { get; set; } = 100;
+    }
+
+    private async Task ShowWithAnimation()
+    {
+        toastTimer?.Dispose();
+        showToast = true;
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(50);
+        
+        isToastVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void ShowSuccessToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-success-light";
+        toastIcon = "bi-check-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private void ShowErrorToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-danger-light";
+        toastIcon = "bi-exclamation-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private async Task CloseToast()
+    {
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(300);
+        
+        showToast = false;
+        toastTimer?.Dispose();
+        toastTimer = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void SetupToastAutoHide()
+    {
+        toastTimer?.Dispose();
+        
+        toastTimer = new System.Threading.Timer(async _ => 
+        {
+            await CloseToast();
+        }, null, 5000, System.Threading.Timeout.Infinite);
+    }
+
+    private async Task ClickFileInput()
+    {
+        // Using JavaScript interop to trigger click on the file input
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('fileInput').click()");
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            isUploading = true;
+            
+            // Get the selected file
+            var file = e.File;
+            if (file == null)
+            {
+                ShowErrorToast("Error", "No file selected.");
+                return;
+            }
+            
+            // Validate file type
+            string fileType = file.ContentType.ToLower();
+            if (fileType != "image/jpeg" && fileType != "image/jpg" && fileType != "image/png")
+            {
+                ShowErrorToast("Invalid File", "Please select a JPG or PNG image.");
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                ShowErrorToast("File Too Large", "Maximum file size is 5MB.");
+                return;
+            }
+            
+            // Read the file content
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).ReadAsync(buffer);
+            
+            // Convert to base64 string and update the local preview immediately
+            string base64Image = Convert.ToBase64String(buffer);
+            string dataUrl = $"data:{file.ContentType};base64,{base64Image}";
+            
+            // Update the local preview immediately
+            userProfile.ImageUrl = dataUrl;
+            
+            // In a real application, you would send this base64 image to the server 
+            // as part of the regular profile update in HandleProfileSubmit
+            // For now, we'll just display it locally
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", "An error occurred while processing the image.");
+            Console.WriteLine($"Exception during image processing: {ex.Message}");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+} 

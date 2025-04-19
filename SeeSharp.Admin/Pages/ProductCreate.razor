@@ -1,0 +1,514 @@
+@page "/products/create"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.Text
+@attribute [Authorize]
+
+<PageTitle>Create Product - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        @if (isLoading)
+        {
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Processing your request...</p>
+            </div>
+        }
+        else
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-1">
+                                    <li class="breadcrumb-item"><a href="/products">Products</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">Create New Product</li>
+                                </ol>
+                            </nav>
+                            <h1 class="page-title mb-0">
+                                <i class="bi bi-plus-circle me-2"></i>Create New Product
+                            </h1>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </button>
+                            <button class="btn btn-primary" @onclick="SaveProduct" disabled="@isLoading">
+                                <i class="bi bi-save me-2"></i>Save Product
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+                </div>
+            }
+
+            <div class="row mb-4">
+                <div class="col-lg-8">
+                    <EditForm Model="@Product" OnValidSubmit="SaveProduct">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <!-- Basic Information Card -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Basic Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="productName" class="form-label">Product Name <span class="text-danger">*</span></label>
+                                            <InputText id="productName" class="form-control" @bind-Value="Product.ProductName" />
+                                            <ValidationMessage For="@(() => Product.ProductName)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="baseVariantName" class="form-label">Base Variant Name <span class="text-danger">*</span></label>
+                                            <InputText id="baseVariantName" class="form-control" @bind-Value="Product.ProductBaseVariantName" />
+                                            <ValidationMessage For="@(() => Product.ProductBaseVariantName)" />
+                                            <small class="text-muted">Name for the initial variant of this product</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                                            <InputSelect id="category" class="form-select" @bind-Value="Product.CategoryId">
+                                                <option value="">-- Select Category --</option>
+                                                @if (categories != null)
+                                                {
+                                                    @foreach (var category in categories)
+                                                    {
+                                                        <option value="@category.CategoryId">@category.CategoryName</option>
+                                                    }
+                                                }
+                                            </InputSelect>
+                                            <ValidationMessage For="@(() => Product.CategoryId)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="colorCode" class="form-label">Color Code <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <InputText id="colorCode" class="form-control" @bind-Value="Product.ColorCode" placeholder="#000000" />
+                                                <button class="btn btn-outline-secondary" type="button" title="Pick color">
+                                                    <i class="bi bi-palette"></i>
+                                                </button>
+                                            </div>
+                                            <ValidationMessage For="@(() => Product.ColorCode)" />
+                                            <small class="text-muted">Hex color code (e.g., #FF0000 for red)</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                                    <InputTextArea id="description" class="form-control" rows="4" @bind-Value="Product.Description" />
+                                    <ValidationMessage For="@(() => Product.Description)" />
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label for="variantPrice" class="form-label">Price <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <InputNumber id="variantPrice" class="form-control" @bind-Value="Product.VariantPrice" step="0.01" />
+                                    </div>
+                                    <ValidationMessage For="@(() => Product.VariantPrice)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                    </EditForm>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Product Images Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Product Image</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="main-image-container mb-3">
+                                @if (string.IsNullOrEmpty(Product.MainImageUrl))
+                                {
+                                    <div class="empty-image-placeholder">
+                                        <i class="bi bi-image"></i>
+                                        <p>Main product image</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <img src="@Product.MainImageUrl" alt="Main product image" class="img-fluid rounded main-image" />
+                                }
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mainImage" class="form-label">Main Image</label>
+                                <div class="input-group">
+                                    <InputFile id="mainImage" class="form-control" OnChange="OnImageUpload" accept="image/*" disabled="@isLoading" />
+                                    <button class="btn btn-outline-secondary" type="button" disabled="@(selectedImage is null || isLoading)">Upload</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Actions Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                You'll be able to add product variants after creating the base product.
+                            </div>
+
+                            <button type="button" class="btn btn-primary w-100 mb-3" @onclick="SaveProduct" disabled="@isLoading">
+                                <i class="bi bi-save me-2"></i>Save Product
+                            </button>
+                            
+                            <button type="button" class="btn btn-outline-danger w-100" @onclick="GoBack" disabled="@isLoading">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: rgba(0,0,0,0.02);
+        padding: 1rem;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .card-title {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .main-image-container {
+        text-align: center;
+        border: 2px dashed #ccc;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        transition: all 0.2s ease;
+    }
+    
+    .main-image-container:hover {
+        border-color: #0d6efd;
+    }
+
+    .empty-image-placeholder {
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        color: #6c757d;
+    }
+
+    .empty-image-placeholder i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #0d6efd;
+    }
+
+    .image-preview-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .image-remove-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .main-image {
+        max-height: 300px;
+        object-fit: contain;
+    }
+
+    .additional-images-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-gap: 0.5rem;
+    }
+</style>
+
+@code {
+    private ProductViewModel Product { get; set; } = new ProductViewModel();
+    private IBrowserFile selectedImage;
+    private bool isLoading = false;
+    private string errorMessage;
+    private List<CategoryInfo> categories;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+    
+    [Inject]
+    private HttpClient Http { get; set; }
+    
+    [Inject]
+    private ILogger<ProductCreate> Logger { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Initialize with default values
+            Product = new ProductViewModel
+            {
+                MainImageUrl = "https://via.placeholder.com/800x600",
+                ColorCode = "#000000"
+            };
+
+            // Load categories from API
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during initialization");
+            errorMessage = $"Error loading categories: {ex.Message}";
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            var response = await Http.GetAsync("https://localhost:7222/api/categories/info");
+            if (response.IsSuccessStatusCode)
+            {
+                categories = await response.Content.ReadFromJsonAsync<List<CategoryInfo>>();
+            }
+            else
+            {
+                Logger.LogError("Error loading categories: {StatusCode}", response.StatusCode);
+                errorMessage = "Failed to load categories from server.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading categories");
+            errorMessage = $"Error loading categories: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/products");
+    }
+
+    private async Task SaveProduct()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            
+            // Create the form data for API request
+            var formData = new MultipartFormDataContent();
+            
+            // Add the product details to the form
+            formData.Add(new StringContent(Product.ProductName ?? string.Empty), "ProductName");
+            formData.Add(new StringContent(Product.ProductBaseVariantName ?? string.Empty), "ProductBaseVariantName");
+            formData.Add(new StringContent(Product.ColorCode ?? "#000000"), "ColorCode");
+            
+            // Add product image if available
+            if (selectedImage != null)
+            {
+                var imageContent = new StreamContent(selectedImage.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5)); // 5MB max
+                imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(selectedImage.ContentType);
+                formData.Add(imageContent, "ProductImage", selectedImage.Name);
+            }
+            else if (!string.IsNullOrEmpty(Product.MainImageUrl) && !Product.MainImageUrl.StartsWith("data:"))
+            {
+                // If there's a URL that's not a data URL (from an existing image)
+                formData.Add(new StringContent(Product.MainImageUrl), "ProductImage");
+            }
+            
+            // Add remaining details
+            formData.Add(new StringContent(Product.Description ?? string.Empty), "Description");
+            formData.Add(new StringContent(Product.VariantPrice.ToString()), "VariantPrice");
+            
+            // Add CategoryId if selected
+            if (!string.IsNullOrEmpty(Product.CategoryId))
+            {
+                formData.Add(new StringContent(Product.CategoryId), "CategoryId");
+            }
+            
+            // Send the request to the API
+            var response = await Http.PostAsync("https://localhost:7222/api/products", formData);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Navigate to products page on success
+                NavigationManager.NavigateTo("/products");
+            }
+            else
+            {
+                // Log error response
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Logger.LogError("Error creating product: {StatusCode} - {ErrorContent}", 
+                    response.StatusCode, errorContent);
+                
+                // Display error message to the user
+                errorMessage = $"Error creating product. Status code: {(int)response.StatusCode} - {response.StatusCode}";
+                
+                // Try to parse error content if it's in JSON format
+                try
+                {
+                    var jsonDoc = JsonDocument.Parse(errorContent);
+                    if (jsonDoc.RootElement.TryGetProperty("message", out var messageElement))
+                    {
+                        errorMessage = messageElement.GetString();
+                    }
+                    else if (jsonDoc.RootElement.TryGetProperty("error", out var errorElement))
+                    {
+                        errorMessage = errorElement.GetString();
+                    }
+                }
+                catch (JsonException)
+                {
+                    // If it's not valid JSON, use the raw content as error message
+                    if (!string.IsNullOrWhiteSpace(errorContent) && errorContent.Length < 100)
+                    {
+                        errorMessage = errorContent;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred while creating product");
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveImage()
+    {
+        Product.MainImageUrl = null;
+        selectedImage = null;
+    }
+
+    private async Task OnImageUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var maxAllowedSize = 5 * 1024 * 1024; // 5MB
+            selectedImage = e.File;
+            
+            if (selectedImage.Size > maxAllowedSize)
+            {
+                errorMessage = "Image file is too large. Maximum size is 5MB.";
+                return;
+            }
+            
+            // Create a data URL for preview
+            var format = selectedImage.ContentType;
+            var buffer = new byte[selectedImage.Size];
+            await selectedImage.OpenReadStream(maxAllowedSize: maxAllowedSize).ReadAsync(buffer);
+            var imageBase64 = Convert.ToBase64String(buffer);
+            Product.MainImageUrl = $"data:{format};base64,{imageBase64}";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading image");
+            errorMessage = $"Error uploading image: {ex.Message}";
+        }
+    }
+
+    private decimal CalculateFinalPrice()
+    {
+        return Product.VariantPrice;
+    }
+
+    public class ProductViewModel
+    {
+        [Required(ErrorMessage = "Product name is required")]
+        public string ProductName { get; set; }
+        
+        [Required(ErrorMessage = "Base variant name is required")]
+        public string ProductBaseVariantName { get; set; }
+        
+        [Required(ErrorMessage = "Color code is required")]
+        [RegularExpression(@"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", ErrorMessage = "Please enter a valid color hex code (e.g. #FF0000)")]
+        public string ColorCode { get; set; } = "#000000";
+
+        [Required(ErrorMessage = "Category is required")]
+        public string CategoryId { get; set; }
+
+        [Required(ErrorMessage = "Description is required")]
+        public string Description { get; set; }
+
+        [Required(ErrorMessage = "Price is required")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
+        public decimal VariantPrice { get; set; }
+
+        public string MainImageUrl { get; set; }
+    }
+
+    public class CategoryInfo
+    {
+        public string CategoryId { get; set; }
+        public string CategoryName { get; set; }
+    }
+} 

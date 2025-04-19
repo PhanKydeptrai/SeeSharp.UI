@@ -1,0 +1,734 @@
+@page "/employees"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using System.Net.Http.Json
+@attribute [Authorize]
+
+<PageTitle>Employees - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="page-title">
+                        <i class="bi bi-people me-2"></i>Employees
+                    </h1>
+                    <a href="/employees/add" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Employee
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="input-group search-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" placeholder="Search employees..." 
+                                       @bind="searchTerm" @bind:event="oninput" 
+                                       @onkeyup="HandleSearchKeyUp">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                {
+                                    <span class="input-group-text clear-search-btn" @onclick="ClearSearch">
+                                        <i class="bi bi-x-circle"></i>
+                                    </span>
+                                }
+                            </div>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" @onchange="OnRoleSelected">
+                                    <option value="">All Roles</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Staff">Staff</option>
+                                    <option value="HR">HR</option>
+                                </select>
+                                <select class="form-select" @onchange="OnStatusSelected">
+                                    <option value="">Status: All</option>
+                                    <option value="Active">Status: Active</option>
+                                    <option value="Inactive">Status: Inactive</option>
+                                    <option value="Suspended">Status: Suspended</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        @if (isLoading)
+                        {
+                            <div class="d-flex justify-content-center my-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        }
+                        else if (employeeResponse?.Items?.Count == 0)
+                        {
+                            <div class="alert alert-info">
+                                <h5 class="alert-heading">No employees found</h5>
+                                @if (!string.IsNullOrWhiteSpace(searchTerm) || !string.IsNullOrWhiteSpace(selectedRole) || !string.IsNullOrWhiteSpace(selectedStatus))
+                                {
+                                    <p>
+                                        No employees match your filter criteria
+                                        @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                        {
+                                            <span>with search term: <strong>"@searchTerm"</strong></span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(selectedRole))
+                                        {
+                                            <span>
+                                                with role: <strong>@selectedRole</strong>
+                                            </span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(selectedStatus))
+                                        {
+                                            <span>
+                                                with status: <strong>@selectedStatus</strong>
+                                            </span>
+                                        }
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="ClearAllFilters">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Clear all filters
+                                    </button>
+                                }
+                                else
+                                {
+                                    <p>There are no employees available in the system.</p>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Photo</th>
+                                            <th>Employee Name</th>
+                                            <th>ID</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var employee in employeeResponse?.Items ?? new List<EmployeeDto>())
+                                        {
+                                            <tr class="@(employee.UserStatus == "Deleted" ? "employee-row-deleted" : "employee-row")">
+                                                <td>
+                                                    <div class="employee-avatar" style="@(string.IsNullOrEmpty(employee.ImageUrl) ? "" : $"background-image: url('{employee.ImageUrl}')")"></div>
+                                                </td>
+                                                <td class="fw-medium">
+                                                    @if (employee.UserStatus != "Deleted")
+                                                    {
+                                                        <span>@employee.UserName</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">@employee.UserName</span>
+                                                    }
+                                                </td>
+                                                <td class="text-muted">@employee.UserId.Substring(0, 8)</td>
+                                                <td>@employee.Email</td>
+                                                <td>@employee.PhoneNumber</td>
+                                                <td>@employee.Role</td>
+                                                <td>
+                                                    @{
+                                                        string badgeClass = "bg-success";
+                                                        
+                                                        if (employee.UserStatus == "Inactive")
+                                                        {
+                                                            badgeClass = "bg-warning";
+                                                        }
+                                                        else if (employee.UserStatus == "Suspended")
+                                                        {
+                                                            badgeClass = "bg-danger";
+                                                        }
+                                                        else if (employee.UserStatus == "Deleted")
+                                                        {
+                                                            badgeClass = "bg-danger";
+                                                        }
+                                                    }
+                                                    <span class="badge @badgeClass">@employee.UserStatus</span>
+                                                </td>
+                                                <td>
+                                                    <div class="action-buttons">
+                                                        @if (employee.UserStatus == "Deleted")
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-success" title="Restore" @onclick:stopPropagation="true" @onclick="() => ShowRestoreConfirmation(employee)">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger" title="Delete" @onclick:stopPropagation="true" @onclick="() => ShowDeleteConfirmation(employee)">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <div class="text-muted">
+                                    Showing @((employeeResponse?.Page - 1) * employeeResponse?.PageSize + 1) to @Math.Min(employeeResponse?.Page * employeeResponse?.PageSize ?? 0, employeeResponse?.TotalCount ?? 0) of @employeeResponse?.TotalCount entries
+                                </div>
+                                <nav aria-label="Employee pagination">
+                                    <ul class="pagination mb-0">
+                                        <li class="page-item @(employeeResponse?.HasPreviousPage != true ? "disabled" : "")">
+                                            <a class="page-link" href="javascript:void(0)" @onclick="PreviousPage" tabindex="-1" aria-disabled="@(employeeResponse?.HasPreviousPage != true)">Previous</a>
+                                        </li>
+                                        @{
+                                            int totalPages = (int)Math.Ceiling((employeeResponse?.TotalCount ?? 0) / (double)(employeeResponse?.PageSize ?? 1));
+                                            for (int i = 1; i <= totalPages; i++)
+                                            {
+                                                int pageNumber = i;
+                                                <li class="page-item @(pageNumber == currentPage ? "active" : "")">
+                                                    <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(pageNumber)">@pageNumber</a>
+                                                </li>
+                                            }
+                                        }
+                                        <li class="page-item @(employeeResponse?.HasNextPage != true ? "disabled" : "")">
+                                            <a class="page-link" href="javascript:void(0)" @onclick="NextPage">Next</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete confirmation modal -->
+        @if (showDeleteModal)
+        {
+            <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Delete</h5>
+                            <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete the employee <strong>@employeeToDelete?.UserName</strong>?</p>
+                            <p class="text-danger">This action cannot be undone.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Restore confirmation modal -->
+        @if (showRestoreModal)
+        {
+            <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Restore</h5>
+                            <button type="button" class="btn-close" @onclick="CloseRestoreModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to restore the employee <strong>@employeeToRestore?.UserName</strong>?</p>
+                            <p>This will change the employee status to "Active".</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseRestoreModal">Cancel</button>
+                            <button type="button" class="btn btn-success" @onclick="ConfirmRestore">Restore</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Toast notifications -->
+        @if (showToast)
+        {
+            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                <div class="toast show toast-custom @(isToastVisible ? "toast-visible" : "toast-hidden")" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header @toastHeaderClass">
+                        <i class="bi @toastIcon me-2"></i>
+                        <strong class="me-auto">@toastTitle</strong>
+                        <small>just now</small>
+                        <button type="button" class="btn-close" @onclick="CloseToast"></button>
+                    </div>
+                    <div class="toast-body">
+                        @toastMessage
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0;
+        color: #333;
+    }
+
+    .search-group {
+        max-width: 350px;
+    }
+
+    .employee-avatar {
+        width: 40px;
+        height: 40px;
+        background-color: #f0f0f0;
+        border-radius: 50%;
+        background-image: url('https://via.placeholder.com/40');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .employee-name-link {
+        color: #0d6efd;
+        text-decoration: none;
+    }
+
+    .employee-name-link:hover {
+        text-decoration: underline;
+    }
+    
+    .employee-row {
+        cursor: default;
+    }
+    
+    .employee-row:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+
+    .employee-row-deleted {
+        cursor: default;
+        background-color: rgba(0,0,0,0.03);
+    }
+
+    .toast-container {
+        z-index: 1050;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+    
+    .bg-danger-light {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+    
+    .toast-custom {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        min-width: 300px;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    
+    .toast-hidden {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .toast-visible {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-header {
+        border-bottom: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .clear-search-btn {
+        cursor: pointer;
+        background-color: transparent;
+        border-left: none;
+    }
+
+    .clear-search-btn:hover {
+        color: #dc3545;
+    }
+</style>
+
+@code {
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+    
+    [Inject]
+    private HttpClient HttpClient { get; set; }
+    
+    private EmployeeResponseDto? employeeResponse;
+    private bool isLoading = true;
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private string searchTerm = "";
+    private string selectedRole = "";
+    private string selectedStatus = "";
+    
+    // Delete modal properties
+    private bool showDeleteModal = false;
+    private EmployeeDto? employeeToDelete;
+    
+    // Restore modal properties
+    private EmployeeDto? employeeToRestore;
+    private bool showRestoreModal = false;
+    
+    // Toast notification properties
+    private bool showToast = false;
+    private bool isToastVisible = false;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private string toastHeaderClass = "";
+    private string toastIcon = "";
+    private System.Threading.Timer? toastTimer;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task LoadEmployeesAsync()
+    {
+        isLoading = true;
+        
+        try
+        {
+            var url = $"https://localhost:7222/api/employees?page={currentPage}&pageSize={pageSize}";
+            
+            // Add search term if provided
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                url += $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
+            }
+            
+            // Add role filter if selected
+            if (!string.IsNullOrWhiteSpace(selectedRole))
+            {
+                url += $"&filterRole={Uri.EscapeDataString(selectedRole)}";
+            }
+            
+            // Add status filter if selected
+            if (!string.IsNullOrWhiteSpace(selectedStatus))
+            {
+                url += $"&filterStatus={Uri.EscapeDataString(selectedStatus)}";
+            }
+            
+            Console.WriteLine($"Calling API: {url}");
+            employeeResponse = await HttpClient.GetFromJsonAsync<EmployeeResponseDto>(url);
+            Console.WriteLine($"API returned {employeeResponse?.Items?.Count ?? 0} employees");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading employees: {ex.Message}");
+            ShowErrorToast("Error", "Failed to load employees. Please try again.");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            currentPage = 1;
+            await LoadEmployeesAsync();
+        }
+    }
+    
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        currentPage = 1;
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task ClearAllFilters()
+    {
+        searchTerm = "";
+        selectedRole = "";
+        selectedStatus = "";
+        currentPage = 1;
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task OnRoleSelected(ChangeEventArgs e)
+    {
+        var role = e.Value?.ToString() ?? "";
+        
+        selectedRole = role;
+        currentPage = 1;
+        
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task OnStatusSelected(ChangeEventArgs e)
+    {
+        var status = e.Value?.ToString() ?? "";
+        
+        selectedStatus = status;
+        currentPage = 1;
+        
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        currentPage = page;
+        await LoadEmployeesAsync();
+    }
+    
+    private async Task NextPage()
+    {
+        if (employeeResponse?.HasNextPage == true)
+        {
+            currentPage++;
+            await LoadEmployeesAsync();
+        }
+    }
+    
+    private async Task PreviousPage()
+    {
+        if (employeeResponse?.HasPreviousPage == true)
+        {
+            currentPage--;
+            await LoadEmployeesAsync();
+        }
+    }
+    
+    private void ShowDeleteConfirmation(EmployeeDto employee)
+    {
+        employeeToDelete = employee;
+        showDeleteModal = true;
+    }
+    
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        employeeToDelete = null;
+    }
+    
+    private async Task ConfirmDelete()
+    {
+        if (employeeToDelete != null)
+        {
+            try
+            {
+                // Update employee status to "Deleted" instead of deleting
+                var content = new StringContent("\"Deleted\"", System.Text.Encoding.UTF8, "application/json");
+                var response = await HttpClient.PutAsync($"https://localhost:7222/api/employees/{employeeToDelete.UserId}/status", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowSuccessToast("Success", $"Employee '{employeeToDelete.UserName}' was deleted successfully.");
+                    
+                    // Refresh the employee list after successful status update
+                    await LoadEmployeesAsync();
+                }
+                else
+                {
+                    // Check if the error is about updating own status
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        if (errorContent.Contains("Cannot update your own status"))
+                        {
+                            ShowErrorToast("Operation Not Allowed", "You cannot delete your own account.");
+                        }
+                        else
+                        {
+                            ShowErrorToast("Error", $"Failed to delete the employee. Status: {response.StatusCode}");
+                        }
+                    }
+                    else
+                    {
+                        ShowErrorToast("Error", $"Failed to delete the employee. Status: {response.StatusCode}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorToast("Error", "An error occurred while deleting the employee.");
+                Console.WriteLine($"Exception when deleting employee: {ex.Message}");
+            }
+            finally
+            {
+                CloseDeleteModal();
+            }
+        }
+    }
+    
+    private void ShowRestoreConfirmation(EmployeeDto employee)
+    {
+        employeeToRestore = employee;
+        showRestoreModal = true;
+    }
+    
+    private void CloseRestoreModal()
+    {
+        showRestoreModal = false;
+        employeeToRestore = null;
+    }
+    
+    private async Task ConfirmRestore()
+    {
+        if (employeeToRestore != null)
+        {
+            try
+            {
+                // Update employee status to "Active"
+                var content = new StringContent("\"Active\"", System.Text.Encoding.UTF8, "application/json");
+                var response = await HttpClient.PutAsync($"https://localhost:7222/api/employees/{employeeToRestore.UserId}/status", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    ShowSuccessToast("Success", $"Employee '{employeeToRestore.UserName}' was restored successfully.");
+                    
+                    // Refresh the employee list after successful status update
+                    await LoadEmployeesAsync();
+                }
+                else
+                {
+                    ShowErrorToast("Error", $"Failed to restore the employee. Status: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorToast("Error", "An error occurred while restoring the employee.");
+                Console.WriteLine($"Exception when restoring employee: {ex.Message}");
+            }
+            finally
+            {
+                CloseRestoreModal();
+            }
+        }
+    }
+    
+    private async Task ShowWithAnimation()
+    {
+        toastTimer?.Dispose();
+        showToast = true;
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(50);
+        
+        isToastVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void ShowSuccessToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-success-light";
+        toastIcon = "bi-check-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private void ShowErrorToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-danger-light";
+        toastIcon = "bi-exclamation-circle";
+        
+        _ = ShowWithAnimation();
+        
+        SetupToastAutoHide();
+    }
+    
+    private async Task CloseToast()
+    {
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        await Task.Delay(300);
+        
+        showToast = false;
+        toastTimer?.Dispose();
+        toastTimer = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void SetupToastAutoHide()
+    {
+        toastTimer?.Dispose();
+        
+        toastTimer = new System.Threading.Timer(async _ => 
+        {
+            await CloseToast();
+        }, null, 5000, System.Threading.Timeout.Infinite);
+    }
+    
+    public class EmployeeDto
+    {
+        public string UserId { get; set; }
+        public string UserName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string ImageUrl { get; set; }
+        public string PhoneNumber { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
+        public string UserStatus { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+    
+    public class EmployeeResponseDto
+    {
+        public List<EmployeeDto> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasNextPage { get; set; }
+        public bool HasPreviousPage { get; set; }
+    }
+} 

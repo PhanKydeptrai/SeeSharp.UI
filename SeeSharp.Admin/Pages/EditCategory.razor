@@ -1,0 +1,370 @@
+@page "/categories/edit/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@using SeeSharp.Admin.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@using System.Net.Http
+@using System.Net.Http.Headers
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Category - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="page-title">
+                        <i class="bi bi-pencil-square me-2"></i>Edit Category
+                    </h1>
+                    <button class="btn btn-outline-secondary" @onclick="GoBackToCategories">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Categories
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading category information...</p>
+            </div>
+        }
+        else if (categoryName == null)
+        {
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Category not found or could not be loaded.
+            </div>
+            <button class="btn btn-primary" @onclick="GoBackToCategories">
+                <i class="bi bi-arrow-left me-2"></i>Back to Categories
+            </button>
+        }
+        else
+        {
+            <div class="row">
+                <div class="col-lg-8 col-md-10 col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-4">Category Information</h5>
+
+                            <div class="mb-3">
+                                <label for="categoryName" class="form-label">Category Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="categoryName" @bind="categoryName">
+                                @if (!string.IsNullOrEmpty(nameError))
+                                {
+                                    <div class="text-danger mt-1">@nameError</div>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="categoryImageUrl" class="form-label">Image</label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="main-image-container mb-3">
+                                            @if (string.IsNullOrEmpty(imagePreviewUrl))
+                                            {
+                                                <div class="empty-image-placeholder">
+                                                    <i class="bi bi-image"></i>
+                                                    <p>Category image</p>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="image-preview-container">
+                                                    <img src="@imagePreviewUrl" alt="Category image" class="img-fluid rounded main-image" />
+                                                    <button type="button" class="btn btn-danger btn-sm image-remove-btn" @onclick="RemoveImage">
+                                                        <i class="bi bi-x"></i>
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <InputFile id="categoryImage" class="form-control" OnChange="OnFileSelected" accept="image/*" disabled="@isUploading" />
+                                            <div class="form-text mt-2">Maximum file size: 2MB. Supported formats: JPG, PNG, GIF.</div>
+                                        </div>
+
+                                        @if (isUploading)
+                                        {
+                                            <div class="d-flex align-items-center mt-2">
+                                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                <span>Uploading image...</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-primary" @onclick="SaveCategory" disabled="@isSaving">
+                                    @if (isSaving)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-lg me-2"></i>
+                                        <span>Save Changes</span>
+                                    }
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="GoBackToCategories">Cancel</button>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger mt-3">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    @errorMessage
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0;
+        color: #333;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .main-image-container {
+        text-align: center;
+        border: 2px dashed #ccc;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .main-image-container:hover {
+        border-color: #0d6efd;
+    }
+
+    .empty-image-placeholder {
+        height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        color: #6c757d;
+    }
+
+    .empty-image-placeholder i {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        color: #0d6efd;
+    }
+
+    .image-preview-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .image-remove-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .main-image {
+        max-height: 250px;
+        object-fit: contain;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private string categoryName;
+    private string imagePreviewUrl;
+    private string nameError = "";
+    private string errorMessage = "";
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isUploading = false;
+    private IBrowserFile selectedImage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoryAsync();
+    }
+
+    private async Task LoadCategoryAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await Http.GetAsync($"https://localhost:7222/api/categories/{Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                var categoryData = await response.Content.ReadFromJsonAsync<CategoryData>();
+                if (categoryData != null)
+                {
+                    categoryName = categoryData.CategoryName;
+                    imagePreviewUrl = categoryData.ImageUrl;
+                }
+            }
+            else
+            {
+                errorMessage = $"Error loading category: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading category: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            isUploading = true;
+            errorMessage = "";
+            
+            // Get the selected file
+            selectedImage = e.File;
+            if (selectedImage == null)
+                return;
+
+            // Validate file size (max 2MB)
+            var maxAllowedSize = 2 * 1024 * 1024;
+            if (selectedImage.Size > maxAllowedSize)
+            {
+                errorMessage = "File size exceeds the 2MB limit.";
+                selectedImage = null;
+                return;
+            }
+
+            // Create a data URL for preview
+            var format = selectedImage.ContentType;
+            var buffer = new byte[selectedImage.Size];
+            await selectedImage.OpenReadStream(maxAllowedSize: maxAllowedSize).ReadAsync(buffer);
+            var imageBase64 = Convert.ToBase64String(buffer);
+            imagePreviewUrl = $"data:{format};base64,{imageBase64}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Image upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void RemoveImage()
+    {
+        imagePreviewUrl = null;
+        selectedImage = null;
+    }
+
+    private async Task SaveCategory()
+    {
+        // Reset error messages
+        nameError = "";
+        errorMessage = "";
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(categoryName))
+        {
+            nameError = "Category name is required";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            // Create multipart form content
+            var content = new MultipartFormDataContent();
+            
+            // Add category name
+            content.Add(new StringContent(categoryName), "categoryName");
+            
+            // Add image if one was selected
+            if (selectedImage != null)
+            {
+                var imageContent = new StreamContent(selectedImage.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024));
+                imageContent.Headers.ContentType = new MediaTypeHeaderValue(selectedImage.ContentType);
+                content.Add(imageContent, "image", selectedImage.Name);
+            }
+
+            // Send request to the API
+            var response = await Http.PutAsync($"https://localhost:7222/api/categories/{Id}", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                NavigationManager.NavigateTo("/categories");
+            }
+            else
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to update category. Server response: {responseContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBackToCategories()
+    {
+        NavigationManager.NavigateTo("/categories");
+    }
+
+    private class CategoryData
+    {
+        public string CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public string ImageUrl { get; set; }
+    }
+} 

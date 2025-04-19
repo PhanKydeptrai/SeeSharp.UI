@@ -23,19 +23,76 @@
     <!-- Featured Products -->
     <h2 class="mb-4">Sản phẩm nổi bật</h2>
     <div class="row mb-5">
-        @for (int i = 1; i <= 4; i++)
+        @if (isLoading)
         {
-            <div class="col-md-3 mb-4">
-                <div class="card h-100">
-                    <img src="https://images.unsplash.com/photo-1577744049258-742db9863548?auto=format&fit=crop&w=300&h=200" class="card-img-top" alt="Kính mẫu @i">
-                    <div class="card-body">
-                        <h5 class="card-title">Gọng kính model @i</h5>
-                        <p class="card-text">@(1200000 + i * 100000)đ</p>
-                        <a href="/product/@i" class="btn btn-sm btn-outline-primary">Xem chi tiết</a>
-                        <button class="btn btn-sm btn-primary">Thêm vào giỏ</button>
+            @for (int i = 0; i < 4; i++)
+            {
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="skeleton skeleton-image"></div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="skeleton skeleton-text title"></div>
+                            <div class="skeleton skeleton-text small"></div>
+                            <div class="skeleton skeleton-text price"></div>
+                            <div class="mt-auto d-flex">
+                                <div class="skeleton skeleton-button w-100"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            }
+        }
+        else if (productList == null || productList.Items.Count == 0)
+        {
+            <div class="col-12 text-center py-3">
+                <p>Không có sản phẩm nào để hiển thị.</p>
             </div>
+        }
+        else
+        {
+            @foreach (var product in productList.Items)
+            {
+                bool isOutOfStock = product.Status == "OutOfStock";
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100 product-card @(isOutOfStock ? "out-of-stock" : "")">
+                        <div class="position-relative">
+                            <img src="@(string.IsNullOrEmpty(product.ImageUrl) ? "https://placehold.co/300x200" : product.ImageUrl)" 
+                                 class="card-img-top" alt="@product.ProductName">
+                            @if (product.Status == "Sale")
+                            {
+                                <span class="badge bg-danger position-absolute top-0 end-0 m-2">Sale</span>
+                            }
+                            @if (product.Status == "New")
+                            {
+                                <span class="badge bg-success position-absolute top-0 start-0 m-2">Mới</span>
+                            }
+                            @if (isOutOfStock)
+                            {
+                                <span class="badge bg-secondary position-absolute top-0 end-0 m-2">Hết hàng</span>
+                            }
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@product.ProductName</h5>
+                            <p class="text-muted small">@product.CategoryName</p>
+                            <p class="card-text">@product.PriceOfBaseVariant.ToString("N0")đ</p>
+                            <div class="mt-auto d-flex">
+                                <a href="/product/@product.ProductId" class="btn btn-sm btn-outline-primary flex-grow-1 me-2">Xem chi tiết</a>
+                                <button class="btn btn-sm btn-primary @(isOutOfStock ? "disabled" : "")" 
+                                        disabled="@isOutOfStock"
+                                        @onclick="() => AddToCart(product.BaseVariantId)">
+                                    <i class="bi bi-cart-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @if (isOutOfStock)
+                        {
+                            <div class="out-of-stock-overlay">
+                                <div class="out-of-stock-message">Hết hàng</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
         }
     </div>
 
@@ -140,7 +197,107 @@
     </div>
 </div> 
 
+<style>
+    .skeleton {
+        position: relative;
+        overflow: hidden;
+        background-color: #f0f0f0;
+    }
+    
+    .skeleton::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+    
+    @@keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
+    
+    .skeleton-image {
+        height: 200px;
+        border-radius: 4px 4px 0 0;
+    }
+    
+    .skeleton-text {
+        height: 16px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+    }
+    
+    .skeleton-text.title {
+        height: 22px;
+        width: 80%;
+    }
+    
+    .skeleton-text.small {
+        width: 60%;
+        height: 14px;
+    }
+    
+    .skeleton-text.price {
+        width: 40%;
+    }
+    
+    .skeleton-button {
+        height: 38px;
+        border-radius: 4px;
+        margin-top: 12px;
+    }
+    
+    /* Product Card Styling */
+    .product-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Out of Stock Styling */
+    .product-card.out-of-stock {
+        opacity: 0.7;
+    }
+    
+    .out-of-stock-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2;
+    }
+    
+    .out-of-stock-message {
+        background-color: rgba(108, 117, 125, 0.85);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 4px;
+        font-weight: bold;
+        transform: rotate(-15deg);
+        font-size: 1.2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
 @code{
+    private bool isLoading = true;
+    private PagedList<ProductResponse>? productList;
+
     protected override async Task OnInitializedAsync()
     {
         await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -174,11 +331,151 @@
                 }
             }
         }
+
+        await LoadFeaturedProducts();
+    }
+
+    private async Task LoadFeaturedProducts()
+    {
+        try
+        {
+            isLoading = true;
+            // Get first page of products with page size 4 to show on homepage
+            string url = "https://localhost:7222/api/products?page=1&pageSize=4";
+            productList = await Http.GetFromJsonAsync<PagedList<ProductResponse>>(url);
+            Console.WriteLine($"Loaded {productList?.Items.Count ?? 0} products for homepage");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading products: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddToCart(Guid productVariantId)
+    {
+        try
+        {
+            var orderRequest = new OrderRequest
+            {
+                ProductVariantId = productVariantId,
+                Quantity = 1
+            };
+            
+            HttpResponseMessage response;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            bool isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+            
+            if (isAuthenticated)
+            {
+                // Use the regular endpoint for authenticated users
+                response = await Http.PostAsJsonAsync("https://localhost:7222/api/orders", orderRequest);
+            }
+            else
+            {
+                // Get guest token from localStorage
+                var guestToken = await LocalStorage.GetItemAsStringAsync("guestToken");
+                
+                // If no guest token exists, get a new one
+                if (string.IsNullOrEmpty(guestToken))
+                {
+                    try
+                    {
+                        // Call the guest token endpoint
+                        var tokenResponse = await Http.GetFromJsonAsync<GuestTokenResponse>("https://localhost:7222/api/customers/guest-token");
+                        
+                        if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.Token))
+                        {
+                            // Store the guest token in localStorage
+                            await LocalStorage.SetItemAsStringAsync("guestToken", tokenResponse.Token);
+                            guestToken = tokenResponse.Token;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error getting guest token: {ex.Message}");
+                        return;
+                    }
+                }
+                
+                // Create a new HttpRequestMessage with Bearer token
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7222/api/orders/guest")
+                {
+                    Content = JsonContent.Create(orderRequest)
+                };
+                
+                // Add Bearer token to request header
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", guestToken);
+                
+                // Send request
+                response = await Http.SendAsync(request);
+            }
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Product added to cart successfully");
+            }
+            else
+            {
+                Console.WriteLine($"Error adding to cart: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+        }
     }
 
     // Response model for the guest token API
     private class GuestTokenResponse
     {
-        public string Token { get; set; }
+        public string Token { get; set; } = string.Empty;
+    }
+
+    private class OrderRequest
+    {
+        public Guid ProductVariantId { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    private class VariantResponse
+    {
+        public Guid ProductVariantId { get; set; }
+        public Guid ProductId { get; set; }
+        public string VariantName { get; set; } = string.Empty;
+        public string ColorCode { get; set; } = string.Empty;
+        public string ProductCode { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool IsAvailable { get; set; }
+        public bool IsBaseVariant { get; set; }
+    }
+
+    private class ProductResponse
+    {
+        public Guid ProductId { get; set; }
+        public Guid BaseVariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal PriceOfBaseVariant { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? Description { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+        public List<VariantResponse> Variants { get; set; } = new List<VariantResponse>();
+    }
+
+    private class PagedList<T>
+    {
+        public List<T> Items { get; set; } = new List<T>();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public bool HasNextPage { get; set; }
+        public bool HaspreviousPage { get; set; }
     }
 }

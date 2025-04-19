@@ -1,0 +1,315 @@
+@page "/employees/{Id:int}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject NavigationManager NavigationManager
+
+<PageTitle>Employee Detail - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <a href="/employees" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h1 class="page-title mb-0">
+                        <i class="bi bi-person-badge me-2"></i>Employee Detail
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center py-4">
+                        <div class="employee-avatar-large mx-auto mb-3"></div>
+                        <h4 class="employee-name mb-1">John Doe</h4>
+                        <p class="text-muted mb-2">EMP-@Id</p>
+                        <p class="badge bg-success mb-3">Active</p>
+                        <div class="d-grid gap-2">
+                            <a href="/employees/edit/@Id" class="btn btn-primary">
+                                <i class="bi bi-pencil me-2"></i>Edit Profile
+                            </a>
+                            <button class="btn btn-outline-danger" @onclick="ShowTerminationModal">
+                                <i class="bi bi-person-x me-2"></i>Terminate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-info-circle me-2"></i>Basic Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Full Name</div>
+                                    <div class="detail-value">John Doe</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Employee ID</div>
+                                    <div class="detail-value">EMP-@Id</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Department</div>
+                                    <div class="detail-value">IT</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Position</div>
+                                    <div class="detail-value">Senior Developer</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Join Date</div>
+                                    <div class="detail-value">Jun 15, 2021</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Status</div>
+                                    <div class="detail-value">
+                                        <span class="badge bg-success">Active</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-person-lines-fill me-2"></i>Contact Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Email</div>
+                                    <div class="detail-value">john.doe@seesharp.com</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Phone</div>
+                                    <div class="detail-value">+1 (555) 123-4567</div>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="detail-item">
+                                    <div class="detail-label">Address</div>
+                                    <div class="detail-value">123 Main Street, Apt 4B, New York, NY 10001</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Emergency Contact</div>
+                                    <div class="detail-value">Jane Doe</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Emergency Phone</div>
+                                    <div class="detail-value">+1 (555) 987-6543</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-wallet2 me-2"></i>Compensation
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Salary</div>
+                                    <div class="detail-value">$75,000 / year</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Pay Period</div>
+                                    <div class="detail-value">Bi-weekly</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Bank Account</div>
+                                    <div class="detail-value">•••• •••• •••• 1234</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item">
+                                    <div class="detail-label">Tax Status</div>
+                                    <div class="detail-value">Single</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (showTerminationModal)
+        {
+            <div class="modal fade show" style="display: block;" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Terminate Employee</h5>
+                            <button type="button" class="btn-close" @onclick="CloseTerminationModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to terminate this employee?</p>
+                            <p class="text-danger">This action will mark the employee as terminated and revoke system access.</p>
+                            
+                            <div class="mb-3">
+                                <label for="terminationReason" class="form-label">Termination Reason</label>
+                                <select id="terminationReason" class="form-select" @bind="terminationReason">
+                                    <option value="">-- Select a reason --</option>
+                                    <option value="resignation">Voluntary Resignation</option>
+                                    <option value="layoff">Layoff</option>
+                                    <option value="performance">Performance Issues</option>
+                                    <option value="misconduct">Misconduct</option>
+                                    <option value="retirement">Retirement</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="terminationDate" class="form-label">Termination Date</label>
+                                <input type="date" id="terminationDate" class="form-control" @bind="terminationDate" />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="terminationNotes" class="form-label">Additional Notes</label>
+                                <textarea id="terminationNotes" class="form-control" rows="3" @bind="terminationNotes"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseTerminationModal">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="TerminateEmployee" disabled="@(string.IsNullOrEmpty(terminationReason))">
+                                Confirm Termination
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-backdrop fade show"></div>
+        }
+    </div>
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .employee-avatar-large {
+        width: 120px;
+        height: 120px;
+        background-color: #f0f0f0;
+        border-radius: 50%;
+        background-image: url('https://via.placeholder.com/120');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .employee-name {
+        font-weight: 600;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: rgba(0,0,0,0.02);
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .card-title {
+        font-weight: 600;
+        color: #444;
+    }
+
+    .detail-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-label {
+        font-size: 0.875rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+        font-weight: 500;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool showTerminationModal = false;
+    private string terminationReason = string.Empty;
+    private DateTime terminationDate = DateTime.Today;
+    private string terminationNotes = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // Here you would load employee details based on the Id parameter
+        // For example: LoadEmployeeData(Id);
+    }
+
+    private void ShowTerminationModal()
+    {
+        showTerminationModal = true;
+    }
+
+    private void CloseTerminationModal()
+    {
+        showTerminationModal = false;
+        terminationReason = string.Empty;
+        terminationDate = DateTime.Today;
+        terminationNotes = string.Empty;
+    }
+
+    private void TerminateEmployee()
+    {
+        // Here you would update the employee status to "Terminated"
+        // For demo purposes, we'll just navigate back to the list
+        CloseTerminationModal();
+        NavigationManager.NavigateTo("/employees");
+    }
+} 

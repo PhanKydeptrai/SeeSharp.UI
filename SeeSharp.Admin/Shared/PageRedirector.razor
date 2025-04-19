@@ -1,0 +1,27 @@
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Components.Authorization
+
+@code {
+    [Parameter]
+    public bool RequireAuthentication { get; set; } = true;
+
+    [Parameter]
+    public string RedirectTo { get; set; } = "/login";
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (RequireAuthentication && !user.Identity.IsAuthenticated)
+        {
+            Navigation.NavigateTo(RedirectTo);
+        }
+    }
+}
+
+@ChildContent 

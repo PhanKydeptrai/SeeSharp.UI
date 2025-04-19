@@ -1,0 +1,737 @@
+@page "/orders/{OrderId}"
+@using Microsoft.AspNetCore.Authorization
+@using System.Net.Http.Json
+@using System.Globalization
+@attribute [Authorize]
+
+<PageTitle>Order Details - Admin Dashboard</PageTitle>
+
+<PageRedirector>
+    <div class="page-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-1">
+                                <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+                                <li class="breadcrumb-item active" aria-current="page">Order #@(order?.OrderId?.Substring(0, 8) ?? OrderId)</li>
+                            </ol>
+                        </nav>
+                        <h1 class="page-title mb-0">
+                            <i class="bi bi-cart-check me-2"></i>Order #@(order?.OrderId?.Substring(0, 8) ?? OrderId)
+                        </h1>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="GoBack">
+                            <i class="bi bi-arrow-left me-2"></i>Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (order == null)
+        {
+            <div class="alert alert-danger">
+                <h5 class="alert-heading">Order not found</h5>
+                <p>The requested order could not be found or you don't have permission to view it.</p>
+                <button class="btn btn-outline-primary" @onclick="GoBack">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Orders
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="row mb-4">
+                <div class="col-md-6 col-lg-8">
+                    <!-- Order Information Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Order Information</h5>
+                                <div>
+                                    @{
+                                        string statusClass = order.OrderStatus switch
+                                        {
+                                            "Delivered" => "bg-success",
+                                            "Shipped" => "bg-info",
+                                            "Processing" => "bg-warning",
+                                            "New" => "bg-secondary",
+                                            "Cancelled" => "bg-danger",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @statusClass fs-6">@order.OrderStatus</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="text-muted mb-1">Order Number</div>
+                                    <div class="fw-bold">#ORD-@order.OrderId.Substring(0, 8)</div>
+                                </div>
+                                @* <div class="col-md-4">
+                                    <div class="text-muted mb-1">Order Date</div>
+                                    <div class="fw-bold">@DateTime.Now.ToString("yyyy-MM-dd HH:mm")</div>
+                                </div> *@
+                                <div class="col-md-4">
+                                    <div class="text-muted mb-1">Payment Status</div>
+                                    <div class="fw-bold">@(order.PaymentStatus == "None" ? "Pending" : order.PaymentStatus)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="text-muted mb-1">Total Amount</div>
+                                    <div class="fw-bold fs-5 text-primary">
+                                        @{
+                                            var vndCulture = new CultureInfo("vi-VN");
+                                            @string.Format(vndCulture, "{0:N0} VNĐ", order.Total)
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Items Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Order Items (@(order.OrderDetails?.Count ?? 0))</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Unit Price</th>
+                                            <th>Quantity</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in order.OrderDetails ?? new List<OrderDetailDto>())
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="product-image me-3">
+                                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                                            {
+                                                                <img src="@item.ImageUrl" alt="@item.ProductName" class="rounded" />
+                                                            }
+                                                            else
+                                                            {
+                                                                <img src="https://via.placeholder.com/50x50" alt="Product" class="rounded" />
+                                                            }
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-medium">@item.ProductName</div>
+                                                            <div class="text-muted small">Variant: @item.VariantName</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @{
+                                                        @string.Format(vndCulture, "{0:N0} VNĐ", item.Price)
+                                                    }
+                                                </td>
+                                                <td>@item.Quantity</td>
+                                                <td class="text-end">
+                                                    @{
+                                                        @string.Format(vndCulture, "{0:N0} VNĐ", item.Total)
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot class="table-group-divider">
+                                        <tr>
+                                            <td colspan="3" class="text-end fw-bold">Total</td>
+                                            <td class="text-end fw-bold text-primary">
+                                                @{
+                                                    @string.Format(vndCulture, "{0:N0} VNĐ", order.Total)
+                                                }
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Timeline Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Order Timeline</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="order-timeline">
+                                @{
+                                    var statuses = new List<string> { "New", "Processing", "Shipped", "Delivered" };
+                                    var currentStatusIndex = Array.IndexOf(statuses.ToArray(), order.OrderStatus);
+                                    
+                                    if (order.OrderStatus == "Cancelled")
+                                    {
+                                        <div class="timeline-item completed">
+                                            <div class="timeline-badge bg-danger">
+                                                <i class="bi bi-x-circle-fill"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">Order Cancelled</h6>
+                                                <p class="mb-0 text-muted">@DateTime.Now.ToString("yyyy-MM-dd HH:mm")</p>
+                                                <p class="small text-muted mb-0">Order has been cancelled</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item completed">
+                                            <div class="timeline-badge">
+                                                <i class="bi bi-check-circle-fill"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">Order Placed</h6>
+                                                <p class="mb-0 text-muted">@DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd HH:mm")</p>
+                                                <p class="small text-muted mb-0">Customer placed order #ORD-@order.OrderId.Substring(0, 8)</p>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @for (int i = statuses.Count - 1; i >= 0; i--)
+                                        {
+                                            bool isCompleted = i <= currentStatusIndex;
+                                            <div class="timeline-item @(isCompleted ? "completed" : "")">
+                                                <div class="timeline-badge">
+                                                    @if (isCompleted)
+                                                    {
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-circle"></i>
+                                                    }
+                                                </div>
+                                                <div class="timeline-content">
+                                                    <h6 class="mb-1">Order @statuses[i]</h6>
+                                                    @if (isCompleted)
+                                                    {
+                                                        <p class="mb-0 text-muted">@DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd HH:mm")</p>
+                                                    }
+                                                    <p class="small text-muted mb-0">
+                                                        @switch (statuses[i])
+                                                        {
+                                                            case "New":
+                                                                <span>Customer placed order #ORD-@order.OrderId.Substring(0, 8)</span>
+                                                                break;
+                                                            case "Processing":
+                                                                <span>Order is being processed</span>
+                                                                break;
+                                                            case "Shipped":
+                                                                <span>Order has been shipped</span>
+                                                                break;
+                                                            case "Delivered":
+                                                                <span>Order has been delivered</span>
+                                                                break;
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <!-- Customer Information Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Customer Information</h5>
+                                <a href="#" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-person me-1"></i>View Profile
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar-initial rounded-circle bg-primary text-white me-3">
+                                    <span>@(order.CustomerId?.Substring(0, 2).ToUpper() ?? "CU")</span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">Customer ID: @order.CustomerId?.Substring(0, 8)</h6>
+                                    <span class="text-muted small">Order placed: @DateTime.Now.ToString("yyyy-MM-dd")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions Card -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Order Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" @onclick="ShowUpdateOrderStatusModal">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Update Status
+                                </button>
+                                @if (order.OrderStatus != "Cancelled")
+                                {
+                                    <button class="btn btn-outline-danger" @onclick="CancelOrder">
+                                        <i class="bi bi-x-circle me-2"></i>Cancel Order
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Toast notifications -->
+    @if (showToast)
+    {
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast show toast-custom @(isToastVisible ? "toast-visible" : "toast-hidden")" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header @toastHeaderClass">
+                    <i class="bi @toastIcon me-2"></i>
+                    <strong class="me-auto">@toastTitle</strong>
+                    <small>just now</small>
+                    <button type="button" class="btn-close" @onclick="CloseToast"></button>
+                </div>
+                <div class="toast-body">
+                    @toastMessage
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Order Status Update Modal -->
+    @if (showOrderStatusModal)
+    {
+        <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Update</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to update the order status?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" @onclick="UpdateOrderStatus" disabled="@isUpdating">
+                            @if (isUpdating)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                <span>Updating...</span>
+                            }
+                            else
+                            {
+                                <span>Confirm</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+</PageRedirector>
+
+<style>
+    .page-container {
+        padding: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .card {
+        border-radius: 0.5rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: rgba(0,0,0,0.02);
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+        padding: 1rem 1.25rem;
+    }
+
+    .card-title {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .product-image img {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+    }
+
+    .avatar-initial {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .order-timeline {
+        position: relative;
+        margin-left: 1rem;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1.5rem;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 0.9rem;
+        top: 1.5rem;
+        bottom: 0;
+        width: 2px;
+        background-color: #e0e0e0;
+        transform: translateX(-50%);
+    }
+
+    .timeline-item:last-child::before {
+        display: none;
+    }
+
+    .timeline-badge {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateX(-50%);
+    }
+
+    .timeline-item.completed .timeline-badge {
+        background-color: #198754;
+    }
+
+    .timeline-content {
+        padding-left: 2rem;
+    }
+
+    .toast-container {
+        z-index: 1050;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+    
+    .bg-danger-light {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+    
+    .toast-custom {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        min-width: 300px;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    
+    .toast-hidden {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .toast-visible {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-header {
+        border-bottom: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .modal-backdrop {
+        opacity: 0.5;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string OrderId { get; set; }
+    
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+    
+    [Inject]
+    private HttpClient HttpClient { get; set; }
+    
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+    
+    private OrderDto order;
+    private bool isLoading = true;
+    
+    // Toast notification properties
+    private bool showToast = false;
+    private bool isToastVisible = false;
+    private string toastTitle = "";
+    private string toastMessage = "";
+    private string toastHeaderClass = "";
+    private string toastIcon = "";
+    private System.Threading.Timer? toastTimer;
+    
+    // Modal and order status update properties
+    private bool showOrderStatusModal = false;
+    private bool isUpdating = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrderAsync();
+    }
+    
+    private async Task LoadOrderAsync()
+    {
+        isLoading = true;
+        
+        try
+        {
+            var url = $"https://localhost:7222/api/orders/{OrderId}";
+            
+            Console.WriteLine($"Calling API: {url}");
+            order = await HttpClient.GetFromJsonAsync<OrderDto>(url);
+            Console.WriteLine($"API returned order data for ID: {order?.OrderId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order: {ex.Message}");
+            ShowErrorToast("Error", "Failed to load order details. Please try again.");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/orders");
+    }
+    
+    private async Task CancelOrder()
+    {
+        try
+        {
+            // Use DELETE to cancel order
+            var response = await HttpClient.DeleteAsync($"https://localhost:7222/api/orders/{OrderId}/cancel");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                ShowSuccessToast("Success", $"Order #{OrderId.Substring(0, 8)} has been cancelled.");
+                
+                // Refresh the order details after successful status update
+                await LoadOrderAsync();
+            }
+            else
+            {
+                ShowErrorToast("Error", $"Failed to cancel order. Status: {response.StatusCode}");
+                Console.WriteLine($"Error cancelling order: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", "An error occurred while cancelling the order.");
+            Console.WriteLine($"Exception when cancelling order: {ex.Message}");
+        }
+    }
+    
+    private async Task ShowWithAnimation()
+    {
+        // First set the initial state (hidden)
+        toastTimer?.Dispose();
+        showToast = true;
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        // Short delay to ensure the DOM is updated and the transition will work
+        await Task.Delay(50);
+        
+        // Now show with animation
+        isToastVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void ShowSuccessToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-success-light";
+        toastIcon = "bi-check-circle";
+        
+        // Show toast with animation
+        _ = ShowWithAnimation();
+        
+        // Auto-hide toast after 5 seconds
+        SetupToastAutoHide();
+    }
+    
+    private void ShowErrorToast(string title, string message)
+    {
+        toastTitle = title;
+        toastMessage = message;
+        toastHeaderClass = "bg-danger-light";
+        toastIcon = "bi-exclamation-circle";
+        
+        // Show toast with animation
+        _ = ShowWithAnimation();
+        
+        // Auto-hide toast after 5 seconds
+        SetupToastAutoHide();
+    }
+    
+    private async Task CloseToast()
+    {
+        // Animate out
+        isToastVisible = false;
+        await InvokeAsync(StateHasChanged);
+        
+        // Wait for animation to complete
+        await Task.Delay(300);
+        
+        // Then hide the toast
+        showToast = false;
+        toastTimer?.Dispose();
+        toastTimer = null;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private void SetupToastAutoHide()
+    {
+        // Dispose of existing timer if there is one
+        toastTimer?.Dispose();
+        
+        // Create a new timer that will hide the toast after 5 seconds
+        toastTimer = new System.Threading.Timer(async _ => 
+        {
+            await CloseToast();
+        }, null, 5000, System.Threading.Timeout.Infinite);
+    }
+    
+    private void ShowUpdateOrderStatusModal()
+    {
+        showOrderStatusModal = true;
+    }
+    
+    private void CloseModal()
+    {
+        showOrderStatusModal = false;
+    }
+    
+    private async Task UpdateOrderStatus()
+    {
+        if (isUpdating) return;
+        
+        isUpdating = true;
+        
+        try
+        {
+            // Use PATCH to update order status without any body content
+            var request = new HttpRequestMessage(HttpMethod.Patch, $"https://localhost:7222/api/orders/{OrderId}/order-status");
+            
+            var response = await HttpClient.SendAsync(request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Determine the next status based on server response
+                ShowSuccessToast("Success", "Order status has been updated successfully.");
+                
+                // Refresh the order details after successful status update
+                await LoadOrderAsync();
+                
+                // Close the modal
+                CloseModal();
+            }
+            else
+            {
+                ShowErrorToast("Error", $"Failed to update order status. Status: {response.StatusCode}");
+                Console.WriteLine($"Error updating order status: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowErrorToast("Error", "An error occurred while updating the order status.");
+            Console.WriteLine($"Exception when updating order status: {ex.Message}");
+        }
+        finally
+        {
+            isUpdating = false;
+            StateHasChanged();
+        }
+    }
+    
+    public class OrderDetailDto
+    {
+        public string OrderDetailId { get; set; }
+        public string ProductId { get; set; }
+        public string ProductName { get; set; }
+        public string VariantName { get; set; }
+        public string ColorCode { get; set; }
+        public decimal Price { get; set; }
+        public int Quantity { get; set; }
+        public string ImageUrl { get; set; }
+        public decimal Total { get; set; }
+    }
+    
+    public class OrderDto
+    {
+        public string OrderId { get; set; }
+        public string CustomerId { get; set; }
+        public decimal Total { get; set; }
+        public string PaymentStatus { get; set; }
+        public string OrderStatus { get; set; }
+        public List<OrderDetailDto> OrderDetails { get; set; } = new();
+    }
+} 

@@ -1,0 +1,202 @@
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize]
+
+<div class="modal fade @(_isVisible ? "show d-block" : "d-none")" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(EditMode ? "Edit" : "Add") Product Variant</h5>
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="@Variant" OnValidSubmit="HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="variantName" class="form-label">Variant Name</label>
+                                <InputText id="variantName" class="form-control" @bind-Value="Variant.Name" />
+                                <ValidationMessage For="@(() => Variant.Name)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="sku" class="form-label">SKU</label>
+                                <InputText id="sku" class="form-control" @bind-Value="Variant.SKU" />
+                                <ValidationMessage For="@(() => Variant.SKU)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="color" class="form-label">Color</label>
+                                <InputSelect id="color" class="form-select" @bind-Value="Variant.Color">
+                                    <option value="">-- Select Color --</option>
+                                    <option value="Black">Black</option>
+                                    <option value="Blue">Blue</option>
+                                    <option value="Red">Red</option>
+                                    <option value="Green">Green</option>
+                                    <option value="Brown">Brown</option>
+                                    <option value="Silver">Silver</option>
+                                    <option value="Gold">Gold</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => Variant.Color)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="size" class="form-label">Size</label>
+                                <InputSelect id="size" class="form-select" @bind-Value="Variant.Size">
+                                    <option value="">-- Select Size --</option>
+                                    <option value="Small">Small</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Large">Large</option>
+                                    <option value="XL">XL</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => Variant.Size)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="price" class="form-label">Price Adjustment</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <InputNumber id="price" class="form-control" @bind-Value="Variant.PriceAdjustment" />
+                                </div>
+                                <ValidationMessage For="@(() => Variant.PriceAdjustment)" />
+                                <small class="text-muted">Add positive value for price increase, negative for decrease</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="stock" class="form-label">Stock Quantity</label>
+                                <InputNumber id="stock" class="form-control" @bind-Value="Variant.StockQuantity" />
+                                <ValidationMessage For="@(() => Variant.StockQuantity)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <InputSelect id="status" class="form-select" @bind-Value="Variant.Status">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => Variant.Status)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Featured</label>
+                                <div>
+                                    <InputCheckbox id="featured" @bind-Value="Variant.IsFeatured" />
+                                    <label for="featured" class="form-check-label ms-2">Mark as featured variant</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="image" class="form-label">Variant Image</label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="image" accept="image/*" />
+                            <button class="btn btn-outline-secondary" type="button">Upload</button>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Variant.ImageUrl))
+                        {
+                            <div class="mt-2">
+                                <img src="@Variant.ImageUrl" alt="Variant image" class="img-thumbnail" style="max-height: 100px;" />
+                            </div>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description" class="form-label">Variant Description</label>
+                        <InputTextArea id="description" class="form-control" rows="3" @bind-Value="Variant.Description" />
+                        <ValidationMessage For="@(() => Variant.Description)" />
+                    </div>
+                </EditForm>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="HandleValidSubmit">@(EditMode ? "Save changes" : "Add Variant")</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    [Parameter]
+    public EventCallback<ProductVariantViewModel> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public ProductVariantViewModel Variant { get; set; } = new ProductVariantViewModel();
+
+    [Parameter]
+    public bool EditMode { get; set; } = false;
+
+    private bool _isVisible = false;
+
+    public void Show()
+    {
+        _isVisible = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        _isVisible = false;
+        OnCancel.InvokeAsync();
+    }
+
+    private void HandleValidSubmit()
+    {
+        // Here you would typically send the variant to your backend API
+        OnSave.InvokeAsync(Variant);
+        _isVisible = false;
+    }
+
+    public class ProductVariantViewModel
+    {
+        [Required(ErrorMessage = "Variant name is required")]
+        public string Name { get; set; }
+
+        [Required(ErrorMessage = "SKU is required")]
+        public string SKU { get; set; }
+
+        [Required(ErrorMessage = "Color is required")]
+        public string Color { get; set; }
+
+        [Required(ErrorMessage = "Size is required")]
+        public string Size { get; set; }
+
+        public decimal PriceAdjustment { get; set; } = 0;
+
+        [Range(0, int.MaxValue, ErrorMessage = "Stock quantity must be a positive number")]
+        public int StockQuantity { get; set; } = 0;
+
+        public string Status { get; set; } = "Active";
+
+        public bool IsFeatured { get; set; } = false;
+
+        public string ImageUrl { get; set; } = "https://via.placeholder.com/100x100";
+
+        public string Description { get; set; } = "";
+    }
+} 
