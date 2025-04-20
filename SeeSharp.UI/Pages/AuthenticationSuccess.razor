@@ -1,0 +1,41 @@
+@page "/authentication-success"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager NavigationManager
+
+<div class="container mt-5 mb-5 pb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="success-icon mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <h2 class="text-success mb-3">Xác thực thành công!</h2>
+                    <p class="mb-4">Tài khoản của bạn đã được xác thực thành công. Bây giờ bạn có thể sử dụng tất cả tính năng của ứng dụng.</p>
+                    <button class="btn btn-primary" @onclick="NavigateToHome">Về trang chủ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .success-icon {
+        margin: 0 auto;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private void NavigateToHome()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+} 
